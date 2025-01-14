@@ -62,6 +62,117 @@ const sendPasswordResetEmail = async (email, resetToken) => {
     throw error; // Ném lỗi để xử lý ở tầng controller
   }
 };
+const sendAppointmentConfirmationEmail = async (patientEmail, appointmentDetails) => {
+  try {
+    const html = `
+      <h1>Xác nhận đặt lịch khám</h1>
+      <p>Xin chào,</p>
+      <p>Lịch hẹn khám của bạn đã được đặt thành công với thông tin như sau:</p>
+      <ul>
+        <li>Bác sĩ: ${appointmentDetails.DT.doctorInfor.full_name}</li>
+        <li>Chuyên khoa: ${appointmentDetails.DT.doctorInfor.specialization.name}</li>
+        <li>Ngày khám: ${appointmentDetails.DT.appointment_date}</li>
+        <li>Thời gian: ${appointmentDetails.DT.start_time} - ${appointmentDetails.DT.end_time}</li>
+        <li>Địa chỉ: ${appointmentDetails.DT.doctorInfor.address}</li>
+      </ul>
+      <p>Vui lòng đến đúng giờ để được phục vụ tốt nhất.</p>
+      <p>Xin cảm ơn!</p>
+    `;
+
+    return await sendEmail(
+      patientEmail,
+      "Xác nhận đặt lịch khám thành công",
+      html
+    );
+  } catch (error) {
+    console.error("Error sending appointment confirmation email:", error);
+    throw error;
+  }
+};
+
+const sendAppointmentCancellationEmail = async (patientEmail, appointmentDetails) => {
+  try {
+    const html = `
+      <h1>Thông báo hủy lịch khám</h1>
+      <p>Xin chào,</p>
+      <p>Lịch hẹn khám của bạn đã được hủy với thông tin như sau:</p>
+      <ul>
+        <li>Bác sĩ: ${appointmentDetails.DT.doctorInfor.full_name}</li>
+        <li>Ngày khám: ${appointmentDetails.DT.appointment_date}</li>
+        <li>Thời gian: ${appointmentDetails.DT.start_time} - ${appointmentDetails.DT.end_time}</li>
+        <li>Lý do hủy: ${appointmentDetails.DT.cancellation_reason || 'Không có'}</li>
+      </ul>
+      <p>Bạn có thể đặt lịch khám mới trên hệ thống của chúng tôi.</p>
+      <p>Xin cảm ơn!</p>
+    `;
+
+    return await sendEmail(
+      patientEmail,
+      "Thông báo hủy lịch khám",
+      html
+    );
+  } catch (error) {
+    console.error("Error sending appointment cancellation email:", error);
+    throw error;
+  }
+};
+
+const sendAppointmentApprovalEmail = async (patientEmail, appointmentDetails) => {
+  try {
+    const html = `
+      <h1>Xác nhận chấp nhận lịch khám</h1>
+      <p>Xin chào,</p>
+      <p>Lịch hẹn khám của bạn đã được bác sĩ chấp nhận với thông tin như sau:</p>
+      <ul>
+        <li>Bác sĩ: ${appointmentDetails.DT.doctorInfor.full_name}</li>
+        <li>Chuyên khoa: ${appointmentDetails.DT.doctorInfor.specialization.name}</li>
+        <li>Ngày khám: ${appointmentDetails.DT.appointment_date}</li>
+        <li>Thời gian: ${appointmentDetails.DT.start_time} - ${appointmentDetails.DT.end_time}</li>
+        <li>Địa chỉ: ${appointmentDetails.DT.doctorInfor.address}</li>
+      </ul>
+      <p>Vui lòng đến đúng giờ để được phục vụ tốt nhất.</p>
+      <p>Xin cảm ơn!</p>
+    `;
+
+    return await sendEmail(
+      patientEmail,
+      "Xác nhận chấp nhận lịch khám",
+      html
+    );
+  } catch (error) {
+    console.error("Error sending appointment approval email:", error);
+    throw error;
+  }
+};
+
+const sendAppointmentRejectionEmail = async (patientEmail, appointmentDetails) => {
+  try {
+    const html = `
+      <h1>Thông báo từ chối lịch khám</h1>
+      <p>Xin chào,</p>
+      <p>Rất tiếc, lịch hẹn khám của bạn đã bị từ chối với thông tin như sau:</p>
+      <ul>
+        <li>Bác sĩ: ${appointmentDetails.DT.doctorInfor.full_name}</li>
+        <li>Ngày khám: ${appointmentDetails.DT.appointment_date}</li>
+        <li>Thời gian: ${appointmentDetails.DT.start_time} - ${appointmentDetails.DT.end_time}</li>
+        <li>Lý do từ chối: ${appointmentDetails.DT.rejection_reason || 'Không có'}</li>
+      </ul>
+      <p>Bạn có thể đặt lịch khám mới với bác sĩ khác hoặc thời gian khác trên hệ thống của chúng tôi.</p>
+      <p>Xin cảm ơn!</p>
+    `;
+
+    return await sendEmail(
+      patientEmail,
+      "Thông báo từ chối lịch khám",
+      html
+    );
+  } catch (error) {
+    console.error("Error sending appointment rejection email:", error);
+    throw error;
+  }
+};
+
+
 
 // Kiểm tra kết nối SMTP khi khởi động
 transporter.verify((error, success) => {
@@ -75,4 +186,8 @@ transporter.verify((error, success) => {
 export default {
   sendEmail,
   sendPasswordResetEmail,
+  sendAppointmentConfirmationEmail,
+  sendAppointmentCancellationEmail,
+  sendAppointmentApprovalEmail,
+  sendAppointmentRejectionEmail,
 };

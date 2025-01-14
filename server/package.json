@@ -4,9 +4,10 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "concurrently \"npm run start:user\" \"npm run start:doctor\" ",
+    "start": "concurrently \"npm run start:user\" \"npm run start:doctor\"  \"npm run start:appointment\"",
     "start:user": " npx nodemon --exec babel-node src/user-service/server.js",
-    "start:doctor": " npx nodemon --exec babel-node src/doctor-service/server.js"
+    "start:doctor": " npx nodemon --exec babel-node src/doctor-service/server.js",
+    "start:appointment": " npx nodemon --exec babel-node src/appointment-service/server.js"
   },
   "author": "Long Nhat",
   "license": "ISC",

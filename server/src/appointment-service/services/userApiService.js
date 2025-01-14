@@ -35,7 +35,7 @@ class UserApiService {
       }
       return {
         userData,
-      }
+      };
     } catch (error) {
       console.error("Error fetching user:", error);
       return {

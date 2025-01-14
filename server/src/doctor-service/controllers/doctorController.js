@@ -5,8 +5,7 @@ class DoctorController {
   async createDoctor(req, res) {
     try {
       const result = await doctorService.createDoctor(req.body);
-      const statusCode = result.EC === 0 ? 201 : 400;
-      return res.status(statusCode).json({
+      return res.status(200).json({
         EM: result.EM,
         EC: result.EC,
         DT: result.DT,
@@ -58,53 +57,6 @@ class DoctorController {
   async updateDoctor(req, res) {
     try {
       const result = await doctorService.updateDoctor(req.params.id, req.body);
-
-      if (result.EC === -2) {
-        return res.status(404).json({
-          EM: result.EM,
-          EC: result.EC,
-          DT: result.DT,
-        });
-      }
-
-      return res.status(200).json({
-        EM: result.EM,
-        EC: result.EC,
-        DT: result.DT,
-      });
-    } catch (error) {
-      return res.status(500).json({
-        EM: error.message,
-        EC: -1,
-        DT: [],
-      });
-    }
-  }
-
-  async updateDoctorProfile(req, res) {
-    try {
-      // Verify that the requesting doctor is updating their own profile
-      if (req.user.userId !== req.params.id) {
-        return res.status(403).json({
-          EM: "You can only update your own profile",
-          EC: -1,
-          DT: [],
-        });
-      }
-
-      const result = await doctorService.updateDoctorProfile(
-        req.params.id,
-        req.body
-      );
-
-      if (result.EC === -2) {
-        return res.status(404).json({
-          EM: result.EM,
-          EC: result.EC,
-          DT: result.DT,
-        });
-      }
-
       return res.status(200).json({
         EM: result.EM,
         EC: result.EC,
@@ -122,14 +74,36 @@ class DoctorController {
   async deleteDoctor(req, res) {
     try {
       const result = await doctorService.deleteDoctor(req.params.id);
+      return res.status(200).json({
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        EM: error.message,
+        EC: -1,
+        DT: [],
+      });
+    }
+  }
 
-      if (result.EC === -2) {
-        return res.status(404).json({
-          EM: result.EM,
-          EC: result.EC,
-          DT: result.DT,
+
+  async updateDoctorProfile(req, res) {
+    try {
+      // Verify that the requesting doctor is updating their own profile
+      if (req.user.userId !== req.params.id) {
+        return res.status(403).json({
+          EM: "You can only update your own profile",
+          EC: -1,
+          DT: [],
         });
       }
+
+      const result = await doctorService.updateDoctorProfile(
+        req.user.userId,
+        req.body
+      );
 
       return res.status(200).json({
         EM: result.EM,
@@ -183,13 +157,6 @@ class DoctorController {
   async getSpecializationById(req, res) {
     try {
       const result = await doctorService.getSpecializationById(req.params.id);
-      if (result.EC === -2) {
-        return res.status(404).json({
-          EM: result.EM,
-          EC: result.EC,
-          DT: result.DT,
-        });
-      }
       return res.status(200).json({
         EM: result.EM,
         EC: result.EC,
@@ -210,13 +177,6 @@ class DoctorController {
         req.params.id,
         req.body
       );
-      if (result.EC === -2) {
-        return res.status(404).json({
-          EM: result.EM,
-          EC: result.EC,
-          DT: result.DT,
-        });
-      }
       return res.status(200).json({
         EM: result.EM,
         EC: result.EC,
@@ -234,13 +194,6 @@ class DoctorController {
   async deleteSpecialization(req, res) {
     try {
       const result = await doctorService.deleteSpecialization(req.params.id);
-      if (result.EC === -2) {
-        return res.status(404).json({
-          EM: result.EM,
-          EC: result.EC,
-          DT: result.DT,
-        });
-      }
       return res.status(200).json({
         EM: result.EM,
         EC: result.EC,
@@ -262,14 +215,14 @@ class DoctorController {
         specializationId
       );
 
-      if (result.EC !== 0) {
-        return res.status(400).json(result);
-      }
-
-      return res.status(200).json(result);
+      return res.status(200).json({
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
+      });
     } catch (error) {
       return res.status(500).json({
-        EM: "Error getting doctors by specialization",
+        EM: "Lỗi hệ thống : " + error.message,
         EC: -1,
         DT: [],
       });
@@ -279,44 +232,18 @@ class DoctorController {
   // Schedule Management
   async getAllSchedules(req, res) {
     try {
-      // Kiểm tra quyền ADMIN (thêm layer bảo mật)
-      if (req.user.role !== "ADMIN") {
-        return res.status(403).json({
-          EM: "You don't have permission to access this resource",
-          EC: -3,
-          DT: [],
-        });
-      }
-
       const result = await doctorService.getAllSchedules();
-
-      // Xử lý các trường hợp lỗi
-      if (result.EC !== 0) {
-        const statusCode = result.EC === -1 ? 500 : 400;
-        return res.status(statusCode).json(result);
-      }
-
-      // Thêm metadata vào response
-      const response = {
-        ...result,
-        metadata: {
-          timestamp: new Date().toISOString(),
-          admin_id: req.user.userId,
-        },
-      };
-
-      return res.status(200).json(response);
+      return res.status(200).json({
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
+      });
     } catch (error) {
-      console.error("Controller - Get all schedules error:", error);
       return res.status(500).json({
-        EM: "Internal server error while getting schedules",
+        EM: "Lỗi hệ thống : " + error.message,
         EC: -1,
         DT: [],
-        error: {
-          message: error.message,
-          stack:
-            process.env.NODE_ENV === "development" ? error.stack : undefined,
-        },
+       
       });
     }
   }
@@ -325,39 +252,37 @@ class DoctorController {
     try {
       const { doctorId } = req.params;
       const scheduleData = req.body;
-      const currentUser = req.user;
 
       const result = await doctorService.createSchedule(
         doctorId,
-        scheduleData,
-        currentUser
+        scheduleData,   
       );
-      if (result.EC !== 0) {
-        return res.status(400).json(result);
-      }
-      return res.status(201).json(result);
-    } catch (error) {
-      return res.status(500).json({
-        EM: "Error creating schedule",
-        EC: -1,
-        DT: [],
+      return res.status(201).json({
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
       });
+    } catch (error) {
+     return res.status(500).json({
+       EM: "Lỗi hệ thống: " + error.message,
+       EC: -1,
+       DT: [],
+     });
+
     }
   }
 
   async getDoctorSchedules(req, res) {
     try {
       const { doctorId } = req.params;
-      const currentUser = req.user;
-
       const result = await doctorService.getDoctorSchedules(
         doctorId,
-        currentUser
       );
-      if (result.EC !== 0) {
-        return res.status(400).json(result);
-      }
-      return res.status(200).json(result);
+      return res.status(200).json({
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
+      });
     } catch (error) {
       return res.status(500).json({
         EM: "Error getting schedules",
@@ -371,22 +296,20 @@ class DoctorController {
     try {
       const { doctorId, scheduleId } = req.params;
       const updateData = req.body;
-      const currentUser = req.user;
 
       const result = await doctorService.updateSchedule(
         doctorId,
         scheduleId,
         updateData,
-        currentUser
       );
-
-      if (result.EC !== 0) {
-        return res.status(400).json(result);
-      }
-      return res.status(200).json(result);
+      return res.status(200).json({
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
+      });
     } catch (error) {
       return res.status(500).json({
-        EM: "Error updating schedule",
+        EM: "Lỗi hệ thống :" + error.message,
         EC: -1,
         DT: [],
       });
@@ -396,17 +319,16 @@ class DoctorController {
   async deleteSchedule(req, res) {
     try {
       const { doctorId, scheduleId } = req.params;
-      const currentUser = req.user;
 
       const result = await doctorService.deleteSchedule(
         doctorId,
         scheduleId,
-        currentUser
       );
-      if (result.EC !== 0) {
-        return res.status(400).json(result);
-      }
-      return res.status(200).json(result);
+      return res.status(200).json({
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
+      });
     } catch (error) {
       return res.status(500).json({
         EM: "Error deleting schedule",
