@@ -106,6 +106,7 @@ const userController = {
 
   resetPassword: async (req, res) => {
     try {
+      console.log("token" , newPassword)
       const { token, newPassword } = req.body;
 
       if (!token || !newPassword) {
@@ -129,7 +130,6 @@ const userController = {
   },
   // Profile Controllers
   getProfile: async (req, res) => {
-    console.log("user", req.user.userId);
     try {
       const userId = req.user.userId;
       const profile = await userService.getUserProfile(userId);
@@ -209,12 +209,12 @@ const userController = {
     try {
       const { userId } = req.params;
       const user = await userService.getUserById(userId);
-
-      return res.status(404).json({
-        EM: user.EM,
-        EC: user.EC,
-        DT: user.DT,
-      });
+       // If user is found, return 200
+       return res.status(200).json({
+         EM: user.EM,
+         EC: user.EC,
+         DT: user.DT,
+       });
     } catch (error) {
       return res.status(500).json({
         EM: "Lỗi hệ thống: " + error.message,

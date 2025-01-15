@@ -53,9 +53,7 @@ const router = express.Router();
 router.post(
   "/",
   authenticateToken,
-  checkRole(["PATIENT" , 
-    "DOCTOR" , "ADMIN"
-  ]),
+  checkRole(["PATIENT" ,"DOCTOR" , "ADMIN"]),
   appointmentController.createAppointment
 );
 

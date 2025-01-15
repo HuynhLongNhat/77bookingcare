@@ -84,7 +84,8 @@ class UserService {
         EM: "Đăng nhập thành công",
         EC: 0,
         DT: {
-          user,
+          email :user.email,
+          role : user.user_role,
           token,
         },
       };
@@ -292,11 +293,11 @@ class UserService {
         DT: userUpdate,
       };
     } catch (error) {
-      return res.status(500).json({
+      return {
         EM: "Lỗi hệ thống: " + error.message,
         EC: -1,
         DT: [],
-      });
+      };
     }
   }
 
@@ -359,11 +360,11 @@ class UserService {
         DT: user,
       };
     } catch (error) {
-      return res.status(500).json({
+      return {
         EM: "Lỗi hệ thống: " + error.message,
         EC: -1,
         DT: [],
-      });
+      };
     }
   }
   async updateRoleUser(userId, newRole) {
@@ -430,14 +431,14 @@ class UserService {
       } else {
         return {
           EM: "Người dùng không tồn tại.",
-          EC: 1,
+          EC: -1,
           DT: [],
         };
       }
     } catch (error) {
       return {
         EM: "Lỗi hệ thống: " + error.message,
-        EC: -1,
+        EC: -2,
         DT: [],
       };
     }

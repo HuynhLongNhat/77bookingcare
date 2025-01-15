@@ -39,7 +39,7 @@ module.exports = function (sequelize, DataTypes) {
         unique: true,
       },
       avatar: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(200),
         allowNull: true,
       },
     },

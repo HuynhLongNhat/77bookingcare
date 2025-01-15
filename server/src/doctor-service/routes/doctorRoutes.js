@@ -81,6 +81,9 @@ router.get("/specializations", doctorController.getAllSpecializations);
  *               description:
  *                 type: string
  *                 description: Description of the specialization
+ *               avatar:
+ *                 type: string
+ *                 description: avatar of the specialization
  *     responses:
  *       201:
  *         description: Specialization created successfully
@@ -206,8 +209,6 @@ router.delete(
  *   get:
  *     summary: Get all doctors (Patient, Doctor, Admin)
  *     tags: [Doctors]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of all doctors
@@ -217,8 +218,6 @@ router.delete(
  */
 router.get(
   "/",
-  authenticateToken,
-  checkRole(["ADMIN" , "DOCTOR" ,"PATIENT"]),
   doctorController.getAllDoctors
 );
 /**
@@ -290,8 +289,6 @@ router.post(
  */
 router.get(
   "/:id",
-  authenticateToken,
-  checkRole(["ADMIN", "DOCTOR", "PATIENT"]),
   doctorController.getDoctorById
 );
 
@@ -427,8 +424,7 @@ router.get(
  *   get:
  *     summary: Get all doctor schedules (Patient, Doctor , Admin )
  *     tags: [Schedules]
- *     security:
- *       - bearerAuth: []
+
  *     responses:
  *       200:
  *         description: List of all schedules retrieved successfully
@@ -461,7 +457,6 @@ router.get(
  */
 router.get(
   "/all/schedules",
-  authenticateToken,
   doctorController.getAllSchedules
 );
 
@@ -609,12 +604,45 @@ router.put(
 
 /**
  * @swagger
+ * /api/doctors/{doctorId}/schedules/{scheduleId}:
+ *   get:
+ *     summary: Get details of a specific schedule
+ *     tags: [Schedules]
+ *     parameters:
+ *       - in: path
+ *         name: doctorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the doctor
+ *       - in: path
+ *         name: scheduleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the schedule
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved schedule details
+ *       400:
+ *         description: Schedule not found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Invalid role or not own schedule
+ */
+router.get(
+  "/:doctorId/schedules/:scheduleId",
+  doctorController.getDetailSchedule
+);
+
+/**
+ * @swagger
  * /api/doctors/{doctorId}/schedules:
  *   get:
  *     summary: Get doctor's schedules (Patient, Doctor , Admin)
  *     tags: [Schedules]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: doctorId
@@ -632,8 +660,6 @@ router.put(
  */
 router.get(
   "/:doctorId/schedules",
-  authenticateToken,
-  checkRole(["ADMIN", "DOCTOR", "PATIENT"]),
   doctorController.getDoctorSchedules
 );
 

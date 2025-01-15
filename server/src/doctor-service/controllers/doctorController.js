@@ -55,6 +55,25 @@ class DoctorController {
   }
 
   async updateDoctor(req, res) {
+    console.log("data", req.params.id, req.body);
+    try {
+      const result = await doctorService.updateDoctor(req.params.id, req.body);
+      return res.status(200).json({
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        EM: error.message,
+        EC: -1,
+        DT: [],
+      });
+    }
+  }
+
+  async updateDoctor(req, res) {
+    console.log("data", req.params.id, req.body);
     try {
       const result = await doctorService.updateDoctor(req.params.id, req.body);
       return res.status(200).json({
@@ -87,7 +106,6 @@ class DoctorController {
       });
     }
   }
-
 
   async updateDoctorProfile(req, res) {
     try {
@@ -243,7 +261,6 @@ class DoctorController {
         EM: "Lỗi hệ thống : " + error.message,
         EC: -1,
         DT: [],
-       
       });
     }
   }
@@ -253,31 +270,25 @@ class DoctorController {
       const { doctorId } = req.params;
       const scheduleData = req.body;
 
-      const result = await doctorService.createSchedule(
-        doctorId,
-        scheduleData,   
-      );
+      const result = await doctorService.createSchedule(doctorId, scheduleData);
       return res.status(201).json({
         EM: result.EM,
         EC: result.EC,
         DT: result.DT,
       });
     } catch (error) {
-     return res.status(500).json({
-       EM: "Lỗi hệ thống: " + error.message,
-       EC: -1,
-       DT: [],
-     });
-
+      return res.status(500).json({
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
+      });
     }
   }
 
   async getDoctorSchedules(req, res) {
     try {
       const { doctorId } = req.params;
-      const result = await doctorService.getDoctorSchedules(
-        doctorId,
-      );
+      const result = await doctorService.getDoctorSchedules(doctorId);
       return res.status(200).json({
         EM: result.EM,
         EC: result.EC,
@@ -292,6 +303,31 @@ class DoctorController {
     }
   }
 
+  async getDetailSchedule(req, res) {
+    try {
+      console.log("data" , req.params)
+      const { doctorId, scheduleId } = req.params;
+      const updateData = req.body;
+
+      const result = await doctorService.getDetailSchedule(
+        doctorId,
+        scheduleId,
+        updateData
+      );
+      return res.status(200).json({
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        EM: "Lỗi hệ thống :" + error.message,
+        EC: -1,
+        DT: [],
+      });
+    }
+  }
+
   async updateSchedule(req, res) {
     try {
       const { doctorId, scheduleId } = req.params;
@@ -300,7 +336,7 @@ class DoctorController {
       const result = await doctorService.updateSchedule(
         doctorId,
         scheduleId,
-        updateData,
+        updateData
       );
       return res.status(200).json({
         EM: result.EM,
@@ -320,10 +356,7 @@ class DoctorController {
     try {
       const { doctorId, scheduleId } = req.params;
 
-      const result = await doctorService.deleteSchedule(
-        doctorId,
-        scheduleId,
-      );
+      const result = await doctorService.deleteSchedule(doctorId, scheduleId);
       return res.status(200).json({
         EM: result.EM,
         EC: result.EC,

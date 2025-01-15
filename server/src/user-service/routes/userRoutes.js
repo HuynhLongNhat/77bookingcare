@@ -138,7 +138,53 @@ router.post(
  */
 router.post("/forgot-password", userController.forgotPassword);
 
-
+/**
+ * @swagger
+ * /api/users/reset-password:
+ *   post:
+ *     summary: Reset password with token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - newPassword
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Reset token sent to the user's email
+ *               newPassword:
+ *                 type: string
+ *                 description: New password for the account
+ *     responses:
+ *       200:
+ *         description: Password successfully reset
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Password successfully reset
+ *       400:
+ *         description: Invalid input or token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Invalid token or password
+ *       500:
+ *         description: Server error
+ */
+router.post("/reset-password", userController.resetPassword);
 /**
  * @swagger
  * /api/users/profile:
@@ -219,8 +265,6 @@ router.put(
  */
 router.get(
   "/",
-  authenticateToken,
-  checkRole(["ADMIN"]),
   userController.getAllUsers
 );
 
@@ -246,8 +290,6 @@ router.get(
  */
 router.get(
   "/:userId",
-  authenticateToken,
-  checkRole(["ADMIN"]),
   userController.getUserById
 );
 

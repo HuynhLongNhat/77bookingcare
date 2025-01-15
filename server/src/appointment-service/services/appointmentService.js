@@ -346,8 +346,8 @@ const approveAppointment = async (appointmentId, userId, userRole) => {
   try {
     const appointment = await db.appointments.findOne({
       where: { appointment_id: appointmentId },
-    });
 
+    });
     if (!appointment) {
       return {
         EM: "Không tìm thấy lịch hẹn",
@@ -375,12 +375,20 @@ const approveAppointment = async (appointmentId, userId, userRole) => {
     appointment.approval_time = new Date();
     appointment.status_id = 2; // Giả định 2 là trạng thái "Đã đồng ý"
     await appointment.save();
-      const patientResponse = await userApiService.getUserById(userId);
+      const patientResponse = await userApiService.getUserById(appointment.patient_id);
+
+      const doctortResponse = await userApiService.getUserById(userId);
+
+      console.log("patientResponse" , patientResponse )
     try {
       await emailService.sendAppointmentApprovalEmail(
         patientResponse.userData.email,
         await getAppointmentDetail(appointmentId)
       );
+       await emailService.sendAppointmentApprovalEmail(
+         doctortResponse.userData.email,
+         await getAppointmentDetail(appointmentId)
+       );
     } catch (error) {
       console.error("Error sending approval email:", error);
     }
@@ -409,7 +417,7 @@ const rejectAppointment = async (
     const appointment = await db.appointments.findOne({
       where: { appointment_id: appointmentId },
     });
-
+     
     if (!appointment) {
       return {
         EM: "Không tìm thấy lịch hẹn",
@@ -435,14 +443,22 @@ const rejectAppointment = async (
     appointment.rejection_reason = rejectReason;
     appointment.status_id = 4; // Giả định 4 là trạng thái "Đã từ chối"
     await appointment.save();
-    
-    const patientResponse = await userApiService.getUserById(userId);
+  
+    const patientResponse = await userApiService.getUserById(
+            appointment.patient_id
+          );
+    const doctorResponse = await userApiService.getUserById(userId);
 
     try {
       await emailService.sendAppointmentRejectionEmail(
         patientResponse.userData.email,
         await getAppointmentDetail(appointmentId)
       );
+
+        await emailService.sendAppointmentRejectionEmail(
+          doctorResponse.userData.email,
+          await getAppointmentDetail(appointmentId)
+        );
     } catch (error) {
       console.error("Error sending rejection email:", error);
     }

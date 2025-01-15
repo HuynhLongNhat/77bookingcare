@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
+import { motion } from "framer-motion";
+import { Lock, Eye, EyeOff } from "lucide-react";
+import { resetPassword } from "@/service/authService";
 
 const ResetPassword = () => {
   const [passwords, setPasswords] = useState({
@@ -10,13 +12,16 @@ const ResetPassword = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState({
+    new: false,
+    confirm: false,
+  });
 
   const navigate = useNavigate();
   const location = useLocation();
   const token = new URLSearchParams(location.search).get("token");
 
   useEffect(() => {
-    // Kiểm tra token khi component mount
     if (!token) {
       setError("Token không hợp lệ hoặc đã hết hạn");
       setTimeout(() => navigate("/login"), 3000);
@@ -29,7 +34,6 @@ const ResetPassword = () => {
     setSuccess("");
     setLoading(true);
 
-    // Validate mật khẩu
     if (passwords.newPassword !== passwords.confirmPassword) {
       setError("Mật khẩu không khớp");
       setLoading(false);
@@ -43,30 +47,19 @@ const ResetPassword = () => {
     }
 
     try {
-      // Gọi API reset password
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/users/reset-password`,
-        {
-          token: token,
-          newPassword: passwords.newPassword,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      // Xử lý response thành công
+      const response = await resetPassword({
+       token :token ,
+       newPassword :passwords.newPassword
+      });
+  
+      console.log("response reset passowrd", response);
       if (response.data) {
         setSuccess("Mật khẩu đã được cập nhật thành công!");
-        // Chuyển hướng về trang login sau 3 giây
         setTimeout(() => {
           navigate("/login");
         }, 3000);
       }
     } catch (error) {
-      // Xử lý các loại lỗi
       console.error("Reset password error:", error);
 
       if (error.response?.status === 400) {
@@ -83,28 +76,39 @@ const ResetPassword = () => {
     }
   };
 
-  // Nếu không có token, hiển thị thông báo lỗi
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div
-          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-50">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-lg shadow-lg"
           role="alert"
         >
           <strong className="font-bold">Lỗi!</strong>
-          <span className="block sm:inline">
-            {" "}
+          <span className="block sm:inline ml-2">
             Token không hợp lệ hoặc đã hết hạn.
           </span>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-2xl"
+      >
         <div>
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="mx-auto h-16 w-16 bg-indigo-100 rounded-full flex items-center justify-center"
+          >
+            <Lock className="h-8 w-8 text-indigo-600" />
+          </motion.div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Đặt lại mật khẩu
           </h2>
@@ -114,73 +118,119 @@ const ResetPassword = () => {
         </div>
 
         {error && (
-          <div
-            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md"
             role="alert"
           >
             <span className="block sm:inline">{error}</span>
-          </div>
+          </motion.div>
         )}
 
         {success && (
-          <div
-            className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-md"
             role="alert"
           >
             <span className="block sm:inline">{success}</span>
-          </div>
+          </motion.div>
         )}
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="newPassword" className="sr-only">
+          <div className="space-y-4">
+            <div className="relative">
+              <label
+                htmlFor="newPassword"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Mật khẩu mới
               </label>
-              <input
-                id="newPassword"
-                name="newPassword"
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Mật khẩu mới"
-                value={passwords.newPassword}
-                onChange={(e) =>
-                  setPasswords({ ...passwords, newPassword: e.target.value })
-                }
-              />
+              <div className="relative">
+                <input
+                  id="newPassword"
+                  name="newPassword"
+                  type={showPassword.new ? "text" : "password"}
+                  required
+                  className="appearance-none relative block w-full px-3 py-3 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                  placeholder="Nhập mật khẩu mới"
+                  value={passwords.newPassword}
+                  onChange={(e) =>
+                    setPasswords({ ...passwords, newPassword: e.target.value })
+                  }
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() =>
+                    setShowPassword({ ...showPassword, new: !showPassword.new })
+                  }
+                >
+                  {showPassword.new ? (
+                    <EyeOff className="h-5 w-5 text-gray-400" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-gray-400" />
+                  )}
+                </button>
+              </div>
             </div>
-            <div>
-              <label htmlFor="confirmPassword" className="sr-only">
+
+            <div className="relative">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Xác nhận mật khẩu
               </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Xác nhận mật khẩu"
-                value={passwords.confirmPassword}
-                onChange={(e) =>
-                  setPasswords({
-                    ...passwords,
-                    confirmPassword: e.target.value,
-                  })
-                }
-              />
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showPassword.confirm ? "text" : "password"}
+                  required
+                  className="appearance-none relative block w-full px-3 py-3 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                  placeholder="Xác nhận mật khẩu mới"
+                  value={passwords.confirmPassword}
+                  onChange={(e) =>
+                    setPasswords({
+                      ...passwords,
+                      confirmPassword: e.target.value,
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() =>
+                    setShowPassword({
+                      ...showPassword,
+                      confirm: !showPassword.confirm,
+                    })
+                  }
+                >
+                  {showPassword.confirm ? (
+                    <EyeOff className="h-5 w-5 text-gray-400" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-gray-400" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
           <div>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
               type="submit"
               disabled={loading}
-              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
+              className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white ${
                 loading
                   ? "bg-indigo-400 cursor-not-allowed"
                   : "bg-indigo-600 hover:bg-indigo-700"
-              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-200`}
             >
               {loading ? (
                 <span className="flex items-center">
@@ -209,10 +259,10 @@ const ResetPassword = () => {
               ) : (
                 "Cập nhật mật khẩu"
               )}
-            </button>
+            </motion.button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 };

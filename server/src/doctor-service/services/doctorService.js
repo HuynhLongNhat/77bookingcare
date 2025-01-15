@@ -328,6 +328,7 @@ class DoctorService {
         specialization_id: uuidv4(),
         name: data.name,
         description: data.description,
+        avatar: data.avatar,
       });
       if (!specialization) {
         return {
@@ -387,7 +388,7 @@ class DoctorService {
       // Tìm specialization với ID cụ thể
       const specialization = await db.specializations.findOne({
         where: { specialization_id: id },
-        attributes: ["specialization_id", "name", "description"],
+        attributes: ["specialization_id", "name", "description", "avatar"],
       });
 
       // Kiểm tra nếu không tìm thấy
@@ -436,7 +437,11 @@ class DoctorService {
         };
       }
 
-      await specialization.update(updateData);
+      await specialization.update({
+        name: updateData.name,
+        description: updateData.description,
+        avatar: updateData.avatar,
+      });
       return {
         EM: "Chuyên khoa được cập nhật thành công!",
         EC: 0,
@@ -589,7 +594,6 @@ class DoctorService {
   // Schedule Management
   async getAllSchedules() {
     try {
-      console.log(" vào hàm này")
       // Lấy danh sách lịch hẹn cùng thông tin bác sĩ và chuyên môn
       const schedules = await db.doctor_schedules.findAll({
         include: [
@@ -728,7 +732,7 @@ class DoctorService {
 
   async getDoctorSchedules(doctorId) {
     try {
-      console.log("vào hàm doctor schedule")
+      console.log("vào hàm doctor schedule");
       // Kiểm tra bác sĩ tồn tại và lấy thông tin bác sĩ cùng chuyên môn
       const doctor = await db.doctor_details.findOne({
         where: { doctor_id: doctorId },
@@ -761,7 +765,7 @@ class DoctorService {
 
       if (!schedules || schedules.length === 0) {
         return {
-          EM: "Không có lịch hẹn nào cho bác sĩ này",
+          EM: "Không có lịch làm việc nào cho bác sĩ này",
           EC: 0,
           DT: {
             doctor: doctor.dataValues,
@@ -799,6 +803,82 @@ class DoctorService {
         EM: `Error getting schedules for doctor: ${error.message}`,
         EC: -1,
         DT: [],
+      };
+    }
+  }
+  async getDetailSchedule(doctorId, scheduleId) {
+    console.log("doctorId: ", doctorId);
+    console.log("scheduleId: ", scheduleId);
+    try {
+      console.log("Fetching schedule details...");
+
+      // Kiểm tra bác sĩ tồn tại và lấy thông tin bác sĩ cùng chuyên môn
+      const doctor = await db.doctor_details.findOne({
+        where: { doctor_id: doctorId },
+        attributes: { exclude: ["specialization_id"] },
+        include: [
+          {
+            model: db.specializations,
+            as: "specialization",
+            attributes: ["name", "description"],
+          },
+        ],
+      });
+
+      if (!doctor) {
+        return {
+          EM: "Không tìm thấy bác sĩ",
+          EC: -1,
+          DT: null,
+        };
+      }
+      // Lấy thông tin chi tiết của lịch hẹn
+      const schedule = await db.doctor_schedules.findOne({
+        where: {
+          doctor_id: doctorId,
+          schedule_id: scheduleId,
+        },
+       
+      });
+
+      if (!schedule) {
+        return {
+          EM: "Không tìm thấy lịch hẹn chi tiết",
+          EC: -1,
+          DT: null,
+        };
+      }
+
+      // Lấy thông tin user của bác sĩ
+      const userInfo = await userApiService.getUserById(doctorId);
+
+      // Chuẩn bị dữ liệu trả về
+      const scheduleDetails = {
+        doctor: {
+          ...doctor.dataValues,
+          user: userInfo || null,
+        },
+        schedule: {
+          schedule_id: schedule.schedule_id,
+          schedule_date: schedule.schedule_date,
+          start_time: schedule.start_time,
+          end_time: schedule.end_time,
+          status: schedule.status,
+         
+        },
+      };
+
+      return {
+        EM: "Lấy chi tiết lịch hẹn thành công",
+        EC: 0,
+        DT: scheduleDetails,
+      };
+    } catch (error) {
+      console.error("Error fetching schedule details:", error);
+      return {
+        EM: `Đã xảy ra lỗi khi lấy chi tiết lịch hẹn: ${error.message}`,
+        EC: -1,
+        DT: null,
       };
     }
   }
