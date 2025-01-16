@@ -1,109 +1,71 @@
 import { v4 as uuidv4 } from "uuid";
 import db from "../models";
-import { Op } from "sequelize";
 import userApiService from "./userApiService";
 class DoctorService {
   // Doctor Management
+
   async createDoctor(doctorData) {
     try {
-      // 1. Validate required fields
-      if (!doctorData.user_id || !doctorData.specialization_id) {
-        return {
-          EM: "User ID and Specialization ID are required",
-          EC: -1,
-          DT: [],
-        };
-      }
-
-      // 2. Check if doctor_details already exists
-      const existingDoctor = await db.doctor_details.findOne({
-        where: { user_id: doctorData.user_id },
+      const doctorExist = await db.doctor_details.findOne({
+        where: { doctor_id: doctorData.user_id },
       });
-
-      if (existingDoctor) {
+      if (doctorExist) {
         return {
-          EM: "Professional details already exist for this doctor",
+          EM: "Bác sĩ đã tồn tại.",
           EC: -1,
           DT: [],
         };
       }
-
-      // 3. Verify user exists and has DOCTOR role through User Service API
-      try {
-        const userResponse = await userApiService.getUserById(
-          doctorData.user_id
-        );
-        console.log("userResponse", userResponse);
-        if (!userResponse) {
-          return {
-            EM: "User not found",
-            EC: -1,
-            DT: [],
-          };
-        }
-
-        if (userResponse.user_role !== "DOCTOR") {
-          return {
-            EM: "Selected user must have DOCTOR role",
-            EC: -1,
-            DT: [],
-          };
-        }
-      } catch (error) {
+      const userResponse = await userApiService.getUserById(doctorData.user_id);
+      const userRole = userResponse.userData?.user_role;
+      if (userRole !== "DOCTOR") {
         return {
-          EM: "Error verifying user details",
-          EC: -1,
+          EM: "Người dùng phải có vai trò là bác sĩ.",
+          EC: -3,
           DT: [],
         };
       }
 
-      // 4. Verify specialization exists
+      // Tiếp tục xử lý logic
       const specialization = await db.specializations.findOne({
         where: { specialization_id: doctorData.specialization_id },
       });
 
       if (!specialization) {
         return {
-          EM: "Specialization not found",
-          EC: -1,
+          EM: "Không tìm thấy chuyên khoa.",
+          EC: -4,
           DT: [],
         };
       }
 
-      // 5. Create doctor professional details
-      const doctor = await db.doctor_details.create({
+      const newDoctor = await db.doctor_details.create({
         doctor_id: doctorData.user_id,
-        user_id: doctorData.user_id,
         specialization_id: doctorData.specialization_id,
         position: doctorData.position,
         experience_years: doctorData.experience_years || 0,
         consultation_fee: doctorData.consultation_fee || 0,
       });
 
-      // 6. Get user info again for response
-      const userInfo = await userApiService.getUserById(doctorData.user_id);
-
-      // 7. Return response with user info
       return {
-        EM: "Doctor professional details created successfully",
+        EM: "Tạo mới bác sĩ thành công.",
         EC: 0,
         DT: {
-          ...doctor.dataValues,
-          user: userInfo.DT,
+          newDoctor,
         },
       };
     } catch (error) {
-      console.error("Create doctor error:", error);
       return {
-        EM: `Error creating doctor details: ${error.message}`,
-        EC: -1,
+        EM: `Lỗi hệ thống: ${error.message}`,
+        EC: -5,
         DT: [],
       };
     }
   }
+
   async getDoctorById(id) {
     try {
-      // Find doctor with specialization info
+      // Get doctor information with specialization
       const doctor = await db.doctor_details.findOne({
         where: { doctor_id: id },
         include: [
@@ -113,65 +75,53 @@ class DoctorService {
             attributes: ["name", "description"],
           },
         ],
+        raw: true,
+        nest: true,
       });
 
       if (!doctor) {
         return {
-          EM: "Doctor not found",
+          EM: "Không tìm thấy bác sĩ",
           EC: -2,
           DT: [],
         };
       }
+      // Fetch user info from user service
+      const { userData } = await userApiService.getUserById(id);
+      const { email, user_role, user_profiles = [] } = userData || {};
+      const { full_name, phone, date_of_birth, gender, address, avatar } =
+        user_profiles[0] || {};
 
-      // Get user info from user service
-      const userInfo = await userApiService.getUserById(doctor.user_id);
-      console.log("userInfo", userInfo);
       return {
-        EM: "Get doctor successfully",
+        EM: "Lấy bác sĩ thành công.",
         EC: 0,
         DT: {
           doctor_id: doctor.doctor_id || "",
-          user_id: doctor.user_id || "",
           specialization_id: doctor.specialization_id || "",
           position: doctor.position || "",
           experience_years: doctor.experience_years || "",
           consultation_fee: doctor.consultation_fee || "",
-          specialization: doctor.specialization || "",
-          // Add user information
-          username: userInfo.username || "",
-          email: userInfo.email || "",
-          phone: userInfo.phone || "",
-          full_name: userInfo.full_name || "",
-          date_of_birth: userInfo.date_of_birth || "",
-          gender: userInfo.gender || "",
-          address: userInfo.address || "",
-          avatar: userInfo.avatar || "",
+          specialization: doctor.specialization || {},
+
+          // User data (if exists)
+          email: email || "",
+          full_name: full_name || "",
+          phone: phone || "",
+          user_role: user_role || "",
+          date_of_birth: date_of_birth || "",
+          gender: gender || "",
+          address: address || "",
+          avatar: avatar || "",
         },
       };
     } catch (error) {
-      console.error("Get doctor error:", error);
       return {
-        EM: `Error getting doctor: ${error.message}`,
+        EM: `Lỗi hệ thống: ${error.message}`,
         EC: -1,
         DT: [],
       };
     }
   }
-  // async getDoctors(filters = {}) {
-  //   try {
-  //     return await db.doctor_details.findAll({
-  //       where: filters,
-  //       include: [
-  //         {
-  //           model: db.specializations,
-  //           as: "specialization",
-  //         },
-  //       ],
-  //     });
-  //   } catch (error) {
-  //     throw new Error(`Error getting doctors: ${error.message}`);
-  //   }
-  // }
 
   async getAllDoctors() {
     try {
@@ -186,60 +136,57 @@ class DoctorService {
         ],
       });
 
-      // Get detailed information for each doctor
-      const doctorsWithUserInfo = await Promise.all(
-        doctors.map(async (doctor) => {
-          try {
-            // Get user info from user service - using the same method as getDoctorById
-            const userInfo = await userApiService.getUserById(doctor.user_id);
+      // Fetch user info for each doctor concurrently
+      const doctorDetailsPromises = doctors.map(async (doctor) => {
+        try {
+          const { userData } = await userApiService.getUserById(
+            doctor.doctor_id
+          );
+          if (!userData) return null;
 
-            if (!userInfo) {
-              console.error(
-                `No user data found for doctor ${doctor.doctor_id}`
-              );
-              return null;
-            }
+          const { email, user_role, user_profiles = [] } = userData;
+          const { full_name, phone, date_of_birth, gender, address, avatar } =
+            user_profiles[0] || {};
 
-            return {
-              doctor_id: doctor.doctor_id,
-              user_id: doctor.user_id,
-              specialization_id: doctor.specialization_id,
-              position: doctor.position,
-              experience_years: doctor.experience_years,
-              consultation_fee: doctor.consultation_fee,
-              specialization: doctor.specialization,
-              // Add user information directly like getDoctorById
-              username: userInfo.username || "",
-              email: userInfo.email || "",
-              phone: userInfo.phone || "",
-              full_name: userInfo.full_name || "",
-              date_of_birth: userInfo.date_of_birth || "",
-              gender: userInfo.gender || "",
-              address: userInfo.address || "",
-              avatar: userInfo.avatar || "",
-            };
-          } catch (error) {
-            console.error(
-              `Error fetching user info for doctor ${doctor.doctor_id}:`,
-              error
-            );
-            return null;
-          }
-        })
-      );
+          return {
+            // Doctor data
+            doctor_id: doctor.doctor_id || "",
+            position: doctor.position || "",
+            experience_years: doctor.experience_years || "",
+            consultation_fee: doctor.consultation_fee || "",
+            specialization: doctor.specialization || {},
 
-      // Filter out any null values from failed user info fetches
-      const validDoctors = doctorsWithUserInfo.filter(
-        (doctor) => doctor !== null
+            // User data
+            email: email || "",
+            full_name: full_name || "",
+            phone: phone || "",
+            user_role: user_role || "",
+            date_of_birth: date_of_birth || "",
+            gender: gender || "",
+            address: address || "",
+            avatar: avatar || "",
+          };
+        } catch (error) {
+          console.error(
+            `Error fetching user info for doctor ${doctor.doctor_id}:`,
+            error
+          );
+          return null;
+        }
+      });
+
+      // Resolve all promises and filter out null values
+      const validDoctors = (await Promise.all(doctorDetailsPromises)).filter(
+        Boolean
       );
 
       return {
-        EM: "Get all doctors success",
+        EM: "Lấy danh sách bác sĩ thành công.",
         EC: 0,
         DT: validDoctors,
       };
     } catch (error) {
-      console.error("Get all doctors error:", error);
+      console.error("Error getting doctors:", error);
       return {
         EM: `Error getting doctors: ${error.message}`,
         EC: -1,
@@ -247,6 +194,7 @@ class DoctorService {
       };
     }
   }
+
   async updateDoctor(id, updateData) {
     try {
       // 1. Find doctor details
@@ -270,7 +218,7 @@ class DoctorService {
 
         if (!specialization) {
           return {
-            EM: "Specialization not found",
+            EM: "Không tìm thấy chuyên khoa",
             EC: -1,
             DT: [],
           };
@@ -299,15 +247,11 @@ class DoctorService {
           },
         ],
       });
-
-      const userInfo = await userApiService.getUserById(doctor.user_id);
-
       return {
-        EM: "Update doctor successfully",
+        EM: "Cập nhật bác sĩ thành công",
         EC: 0,
         DT: {
-          ...updatedDoctor.dataValues,
-          user: userInfo.DT,
+          updatedDoctor,
         },
       };
     } catch (error) {
@@ -329,23 +273,21 @@ class DoctorService {
 
       if (!doctor) {
         return {
-          EM: "Doctor not found",
+          EM: "Không tìm thấy bác sĩ",
           EC: -2,
           DT: [],
         };
       }
-
-      // Delete from both tables
       await doctor.destroy();
 
       return {
-        EM: "Delete doctor successfully",
+        EM: "Xóa bác sĩ thành công",
         EC: 0,
         DT: [],
       };
     } catch (error) {
       return {
-        EM: `Error deleting doctor: ${error.message}`,
+        EM: `Lỗi hệ thống: ${error.message}`,
         EC: -1,
         DT: [],
       };
@@ -359,19 +301,23 @@ class DoctorService {
       });
       if (!doctor) {
         return {
-          EM: "Doctor not found",
+          EM: "Không tìm thấy bác sĩ",
           EC: -2,
           DT: [],
         };
       }
       await doctor.update(updateData);
       return {
-        EM: "Update doctor profile successfully",
+        EM: "Cập nhật bác sĩ thành công",
         EC: 0,
         DT: doctor,
       };
     } catch (error) {
-      throw new Error(`Error updating doctor profile: ${error.message}`);
+      return {
+        EM: "Lỗi hệ thống : " + error.message,
+        EC: -1,
+        DT: doctor,
+      };
     }
   }
 
@@ -382,21 +328,26 @@ class DoctorService {
         specialization_id: uuidv4(),
         name: data.name,
         description: data.description,
+        avatar: data.avatar,
       });
       if (!specialization) {
         return {
-          EM: "Create specialization failed",
+          EM: "Tạo mới chuyên khoa thất bại!",
           EC: -1,
           DT: [],
         };
       }
       return {
-        EM: "Create specialization success",
+        EM: "Tạo mới chuyên khoa thành công!",
         EC: 0,
         DT: specialization,
       };
     } catch (error) {
-      throw new Error(`Error creating specialization: ${error.message}`);
+      return {
+        EM: `Lỗi hệ thống: ${error.message}`,
+        EC: -2,
+        DT: [],
+      };
     }
   }
 
@@ -405,20 +356,20 @@ class DoctorService {
       const listSpecializations = await db.specializations.findAll();
       if (!listSpecializations) {
         return {
-          EM: "Get all specializations failed",
+          EM: "Lấy danh sách chuyên khoa thất bại!",
           EC: -1,
           DT: [],
         };
       }
       return {
-        EM: "Get all specializations success",
+        EM: "Lấy danh sách chuyên khoa thành công!",
         EC: 0,
         DT: listSpecializations,
       };
     } catch (error) {
       return {
-        EM: `Error getting specializations: ${error.message}`,
-        EC: -1,
+        EM: `Lỗi hệt thống: ${error.message}`,
+        EC: -2,
         DT: [],
       };
     }
@@ -428,7 +379,7 @@ class DoctorService {
     try {
       if (!id) {
         return {
-          EM: "Invalid specialization ID",
+          EM: "Không tìm thấy id của chuyên khoa",
           EC: -1,
           DT: [],
         };
@@ -437,13 +388,13 @@ class DoctorService {
       // Tìm specialization với ID cụ thể
       const specialization = await db.specializations.findOne({
         where: { specialization_id: id },
-        attributes: ["specialization_id", "name", "description"],
+        attributes: ["specialization_id", "name", "description", "avatar"],
       });
 
       // Kiểm tra nếu không tìm thấy
       if (!specialization) {
         return {
-          EM: "Specialization not found",
+          EM: "Không tìm thấy chuyên khoa",
           EC: -2,
           DT: [],
         };
@@ -451,15 +402,14 @@ class DoctorService {
 
       // Trả về kết quả nếu tìm thấy
       return {
-        EM: "Get specialization success",
+        EM: "Lấy chuyên khoa thành công",
         EC: 0,
         DT: specialization,
       };
     } catch (error) {
-      console.error("Error in getSpecializationById:", error); // Thêm log để debug
       return {
-        EM: `Error getting specialization: ${error.message}`,
-        EC: -1,
+        EM: `Lỗi hệ thống ${error.message}`,
+        EC: -3,
         DT: [],
       };
     }
@@ -470,33 +420,39 @@ class DoctorService {
       const specialization = await db.specializations.findByPk(id);
       if (!specialization) {
         return {
-          EM: "Specialization not found",
+          EM: "Không tìm thấy chuyên khoa",
           EC: -1,
           DT: [],
         };
       }
-
-      // Kiểm tra xem có bác sĩ nào đang sử dụng chuyên khoa này không
       const doctorsUsingSpecialization = await db.doctor_details.count({
         where: { specialization_id: id },
       });
 
       if (doctorsUsingSpecialization > 0) {
         return {
-          EM: "Cannot update specialization that is being used by doctors",
+          EM: "Chuyên khoa này đang được sử dụng không thể cập nhật",
           EC: -2,
           DT: [],
         };
       }
 
-      await specialization.update(updateData);
+      await specialization.update({
+        name: updateData.name,
+        description: updateData.description,
+        avatar: updateData.avatar,
+      });
       return {
-        EM: "Specialization is update success",
+        EM: "Chuyên khoa được cập nhật thành công!",
         EC: 0,
         DT: specialization,
       };
     } catch (error) {
-      throw new Error(`Error updating specialization: ${error.message}`);
+      return {
+        EM: "Lỗi hệ thống : " + error.message,
+        EC: -3,
+        DT: "",
+      };
     }
   }
 
@@ -505,7 +461,7 @@ class DoctorService {
       const specialization = await db.specializations.findByPk(id);
       if (!specialization) {
         return {
-          EM: "Specialization not found",
+          EM: "Không tìm thấy chuyên khoa",
           EC: -1,
           DT: [],
         };
@@ -516,19 +472,21 @@ class DoctorService {
       });
 
       if (doctorsUsingSpecialization > 0) {
-        throw new Error(
-          "Cannot delete specialization that is being used by doctors"
-        );
+        throw new Error("Chuyên khoa này đang được sử dung không thể xóa");
       }
 
       await specialization.destroy();
       return {
-        EM: "Delete specialization success",
+        EM: "Xóa chuyên khoa thành công",
         EC: 0,
         DT: [],
       };
     } catch (error) {
-      throw new Error(`Error deleting specialization: ${error.message}`);
+      return {
+        EM: "Lỗi hệ thống : " + error.message,
+        EC: 0,
+        DT: [],
+      };
     }
   }
 
@@ -541,7 +499,7 @@ class DoctorService {
 
       if (!specialization) {
         return {
-          EM: "Specialization not found",
+          EM: "Không tìm thấy chuyên khoa",
           EC: -1,
           DT: [],
         };
@@ -557,20 +515,27 @@ class DoctorService {
             attributes: ["name", "description"],
           },
         ],
+        raw: true,
+        nest: true,
       });
 
       // Lấy thông tin user cho từng bác sĩ
       const doctorsWithUserInfo = await Promise.all(
         doctors.map(async (doctor) => {
           try {
-            const userInfo = await userApiService.getUserById(doctor.user_id);
-
-            if (!userInfo) {
+            const { userData } = await userApiService.getUserById(
+              doctor.doctor_id
+            );
+            if (!userData) {
               console.error(
                 `No user data found for doctor ${doctor.doctor_id}`
               );
               return null;
             }
+
+            const { email, user_role, user_profiles = [] } = userData || {};
+            const { full_name, phone, date_of_birth, gender, address, avatar } =
+              user_profiles[0] || {};
 
             return {
               doctor_id: doctor.doctor_id,
@@ -581,14 +546,14 @@ class DoctorService {
               consultation_fee: doctor.consultation_fee,
               specialization: doctor.specialization,
               // Thông tin user
-              username: userInfo.username || "",
-              email: userInfo.email || "",
-              phone: userInfo.phone || "",
-              full_name: userInfo.full_name || "",
-              date_of_birth: userInfo.date_of_birth || "",
-              gender: userInfo.gender || "",
-              address: userInfo.address || "",
-              avatar: userInfo.avatar || "",
+              email: email || "",
+              full_name: full_name || "",
+              phone: phone || "",
+              user_role: user_role || "",
+              date_of_birth: date_of_birth || "",
+              gender: gender || "",
+              address: address || "",
+              avatar: avatar || "",
             };
           } catch (error) {
             console.error(
@@ -606,7 +571,7 @@ class DoctorService {
       );
 
       return {
-        EM: "Get doctors by specialization successfully",
+        EM: "Lấy danh sách bác sĩ theo chuyên khoa thành công",
         EC: 0,
         DT: {
           specialization: {
@@ -618,9 +583,8 @@ class DoctorService {
         },
       };
     } catch (error) {
-      console.error("Get doctors by specialization error:", error);
       return {
-        EM: `Error getting doctors: ${error.message}`,
+        EM: `Lỗi hệ thống: ${error.message}`,
         EC: -1,
         DT: [],
       };
@@ -630,18 +594,18 @@ class DoctorService {
   // Schedule Management
   async getAllSchedules() {
     try {
-      // Lấy tất cả lịch làm việc kèm thông tin bác sĩ và chuyên khoa
+      // Lấy danh sách lịch hẹn cùng thông tin bác sĩ và chuyên môn
       const schedules = await db.doctor_schedules.findAll({
         include: [
           {
             model: db.doctor_details,
             as: "doctor",
-            attributes: ["doctor_id", "user_id", "position"],
+            attributes: { exclude: ["specialization_id"] },
             include: [
               {
                 model: db.specializations,
                 as: "specialization",
-                attributes: ["name"],
+                attributes: ["name", "description"],
               },
             ],
           },
@@ -652,37 +616,56 @@ class DoctorService {
         ],
       });
 
-      // Xử lý và format dữ liệu
+      if (!schedules || schedules.length === 0) {
+        return {
+          EM: "Không có lịch hẹn nào",
+          EC: -1,
+          DT: [],
+        };
+      }
+
+      // Format dữ liệu
       const formattedSchedules = await Promise.all(
         schedules.map(async (schedule) => {
-          // Lấy thông tin user của bác sĩ
-          const userInfo = await userApiService.getUserById(
-            schedule.doctor.user_id
-          );
+          try {
+            // Lấy thông tin user từ API cho bác sĩ tương ứng
+            const userInfo = await userApiService.getUserById(
+              schedule.doctor.doctor_id
+            );
 
-          return {
-            schedule_id: schedule.schedule_id,
-            doctor_name: userInfo.full_name,
-            position: schedule.doctor.position,
-            specialization: schedule.doctor.specialization.name,
-            schedule_date: schedule.schedule_date,
-            start_time: schedule.start_time,
-            end_time: schedule.end_time,
-            status: schedule.status,
-          };
+            return {
+              schedule_id: schedule.schedule_id,
+              schedule_date: schedule.schedule_date,
+              start_time: schedule.start_time,
+              end_time: schedule.end_time,
+              status: schedule.status,
+              doctor: {
+                doctor_id: schedule.doctor.doctor_id,
+                position: schedule.doctor.position,
+                specialization: schedule.doctor.specialization.name,
+                user: userInfo, // Thông tin user của bác sĩ
+              },
+            };
+          } catch (error) {
+            console.error(
+              `Lỗi khi xử lý lịch hẹn với ID ${schedule.schedule_id}:`,
+              error
+            );
+            return null; // Bỏ qua nếu có lỗi
+          }
         })
       );
 
+      // Lọc bỏ các lịch hẹn không hợp lệ (nếu có lỗi trong Promise)
+      const validSchedules = formattedSchedules.filter((item) => item !== null);
+
       return {
-        EM: "Get all schedules successfully",
+        EM: "Lấy danh sách lịch hẹn thành công",
         EC: 0,
-        DT: {
-          total_schedules: formattedSchedules.length,
-          schedules: formattedSchedules,
-        },
+        DT: validSchedules,
       };
     } catch (error) {
-      console.error("Get all schedules error:", error);
+      console.error("Lỗi khi lấy danh sách lịch hẹn:", error);
       return {
         EM: `Error getting schedules: ${error.message}`,
         EC: -1,
@@ -691,7 +674,7 @@ class DoctorService {
     }
   }
 
-  async createSchedule(doctorId, scheduleData, currentUser) {
+  async createSchedule(doctorId, scheduleData) {
     try {
       // Kiểm tra bác sĩ tồn tại
       const doctor = await db.doctor_details.findOne({
@@ -700,21 +683,11 @@ class DoctorService {
 
       if (!doctor) {
         return {
-          EM: "Doctor not found",
+          EM: "Không tìm thấy bác sĩ",
           EC: -1,
           DT: [],
         };
       }
-
-      // Kiểm tra quyền
-      if (currentUser.role === "DOCTOR" && currentUser.userId !== doctorId) {
-        return {
-          EM: "You can only manage your own schedule",
-          EC: -3,
-          DT: [],
-        };
-      }
-
       // Kiểm tra trùng lặp lịch
       const existingSchedule = await db.doctor_schedules.findOne({
         where: {
@@ -727,7 +700,7 @@ class DoctorService {
 
       if (existingSchedule) {
         return {
-          EM: "Schedule already exists for this date and time",
+          EM: "Lịch làm việc đã tồn tại ngày và giờ này.",
           EC: -2,
           DT: [],
         };
@@ -740,49 +713,48 @@ class DoctorService {
         schedule_date: scheduleData.schedule_date,
         start_time: scheduleData.start_time,
         end_time: scheduleData.end_time,
-        status: "AVAILABLE", // Mặc định là AVAILABLE
+        status: "AVAILABLE",
       });
 
       return {
-        EM: "Schedule created successfully",
+        EM: "Tạo lịch hẹn thành công",
         EC: 0,
         DT: newSchedule,
       };
     } catch (error) {
-      console.error("Create schedule error:", error);
       return {
-        EM: `Error creating schedule: ${error.message}`,
+        EM: `Lỗi hệ thống ${error.message}`,
         EC: -1,
         DT: [],
       };
     }
   }
 
-  async getDoctorSchedules(doctorId, currentUser) {
+  async getDoctorSchedules(doctorId) {
     try {
-      // Kiểm tra bác sĩ tồn tại
+      console.log("vào hàm doctor schedule");
+      // Kiểm tra bác sĩ tồn tại và lấy thông tin bác sĩ cùng chuyên môn
       const doctor = await db.doctor_details.findOne({
         where: { doctor_id: doctorId },
+        attributes: { exclude: ["specialization_id"] },
+        include: [
+          {
+            model: db.specializations,
+            as: "specialization",
+            attributes: ["name", "description"],
+          },
+        ],
       });
 
       if (!doctor) {
         return {
-          EM: "Doctor not found",
+          EM: "Không tìm thấy bác sĩ",
           EC: -1,
           DT: [],
         };
       }
 
-      // Kiểm tra quyền: DOCTOR chỉ có thể xem lịch của chính mình
-      if (currentUser.role === "DOCTOR" && currentUser.userId !== doctorId) {
-        return {
-          EM: "You can only view your own schedule",
-          EC: -3,
-          DT: [],
-        };
-      }
-
-      // Lấy lịch làm việc
+      // Lấy danh sách lịch hẹn của bác sĩ theo ID
       const schedules = await db.doctor_schedules.findAll({
         where: { doctor_id: doctorId },
         order: [
@@ -791,31 +763,127 @@ class DoctorService {
         ],
       });
 
-      // Lấy thông tin bác sĩ và user
-      const userInfo = await userApiService.getUserById(doctor.user_id);
-      console.log("userInfo", userInfo);
-      return {
-        EM: "Get schedules successfully",
-        EC: 0,
-        DT: {
-          doctor: {
-            ...doctor.dataValues,
-            user: userInfo,
+      if (!schedules || schedules.length === 0) {
+        return {
+          EM: "Không có lịch làm việc nào cho bác sĩ này",
+          EC: 0,
+          DT: {
+            doctor: doctor.dataValues,
+            schedules: [],
           },
-          schedules,
+        };
+      }
+
+      // Lấy thông tin user của bác sĩ
+      const userInfo = await userApiService.getUserById(doctorId);
+
+      // Chuẩn bị dữ liệu trả về
+      const doctorData = {
+        doctor: {
+          ...doctor.dataValues,
+          user: userInfo, // Thông tin user kèm theo
         },
+        schedules: schedules.map((schedule) => ({
+          schedule_id: schedule.schedule_id,
+          schedule_date: schedule.schedule_date,
+          start_time: schedule.start_time,
+          end_time: schedule.end_time,
+          status: schedule.status,
+        })),
+      };
+
+      return {
+        EM: "Lấy danh sách lịch hẹn của bác sĩ thành công",
+        EC: 0,
+        DT: doctorData,
       };
     } catch (error) {
-      console.error("Get schedules error:", error);
+      console.error("Lỗi khi lấy lịch hẹn của bác sĩ:", error);
       return {
-        EM: `Error getting schedules: ${error.message}`,
+        EM: `Error getting schedules for doctor: ${error.message}`,
         EC: -1,
         DT: [],
       };
     }
   }
+  async getDetailSchedule(doctorId, scheduleId) {
+    console.log("doctorId: ", doctorId);
+    console.log("scheduleId: ", scheduleId);
+    try {
+      console.log("Fetching schedule details...");
 
-  async updateSchedule(doctorId, scheduleId, updateData, currentUser) {
+      // Kiểm tra bác sĩ tồn tại và lấy thông tin bác sĩ cùng chuyên môn
+      const doctor = await db.doctor_details.findOne({
+        where: { doctor_id: doctorId },
+        attributes: { exclude: ["specialization_id"] },
+        include: [
+          {
+            model: db.specializations,
+            as: "specialization",
+            attributes: ["name", "description"],
+          },
+        ],
+      });
+
+      if (!doctor) {
+        return {
+          EM: "Không tìm thấy bác sĩ",
+          EC: -1,
+          DT: null,
+        };
+      }
+      // Lấy thông tin chi tiết của lịch hẹn
+      const schedule = await db.doctor_schedules.findOne({
+        where: {
+          doctor_id: doctorId,
+          schedule_id: scheduleId,
+        },
+       
+      });
+
+      if (!schedule) {
+        return {
+          EM: "Không tìm thấy lịch hẹn chi tiết",
+          EC: -1,
+          DT: null,
+        };
+      }
+
+      // Lấy thông tin user của bác sĩ
+      const userInfo = await userApiService.getUserById(doctorId);
+
+      // Chuẩn bị dữ liệu trả về
+      const scheduleDetails = {
+        doctor: {
+          ...doctor.dataValues,
+          user: userInfo || null,
+        },
+        schedule: {
+          schedule_id: schedule.schedule_id,
+          schedule_date: schedule.schedule_date,
+          start_time: schedule.start_time,
+          end_time: schedule.end_time,
+          status: schedule.status,
+         
+        },
+      };
+
+      return {
+        EM: "Lấy chi tiết lịch hẹn thành công",
+        EC: 0,
+        DT: scheduleDetails,
+      };
+    } catch (error) {
+      console.error("Error fetching schedule details:", error);
+      return {
+        EM: `Đã xảy ra lỗi khi lấy chi tiết lịch hẹn: ${error.message}`,
+        EC: -1,
+        DT: null,
+      };
+    }
+  }
+
+  async updateSchedule(doctorId, scheduleId, updateData) {
     try {
       const schedule = await db.doctor_schedules.findOne({
         where: {
@@ -826,21 +894,11 @@ class DoctorService {
 
       if (!schedule) {
         return {
-          EM: "Schedule not found",
+          EM: "Lịch hẹn không tồn tại",
           EC: -1,
           DT: [],
         };
       }
-
-      // Kiểm tra quyền
-      if (currentUser.role === "DOCTOR" && currentUser.userId !== doctorId) {
-        return {
-          EM: "You can only manage your own schedule",
-          EC: -3,
-          DT: [],
-        };
-      }
-
       // Nếu lịch đã BOOKED, không cho phép cập nhật thời gian
       if (
         schedule.status === "BOOKED" &&
@@ -849,7 +907,7 @@ class DoctorService {
           updateData.end_time)
       ) {
         return {
-          EM: "Cannot update time for booked schedule",
+          EM: "Lịch hẹn đã được đặt không thể cập nhật",
           EC: -4,
           DT: [],
         };
@@ -864,12 +922,11 @@ class DoctorService {
       });
 
       return {
-        EM: "Schedule updated successfully",
+        EM: "Lịch hẹn đã được cập nhật thành công!",
         EC: 0,
         DT: schedule,
       };
     } catch (error) {
-      console.error("Update schedule error:", error);
       return {
         EM: `Error updating schedule: ${error.message}`,
         EC: -1,
@@ -878,7 +935,7 @@ class DoctorService {
     }
   }
 
-  async deleteSchedule(doctorId, scheduleId, currentUser) {
+  async deleteSchedule(doctorId, scheduleId) {
     try {
       const schedule = await db.doctor_schedules.findOne({
         where: {
@@ -889,25 +946,15 @@ class DoctorService {
 
       if (!schedule) {
         return {
-          EM: "Schedule not found",
+          EM: "Lịch hẹn không tồn tại",
           EC: -1,
           DT: [],
         };
       }
-
-      // Kiểm tra quyền
-      if (currentUser.role === "DOCTOR" && currentUser.userId !== doctorId) {
-        return {
-          EM: "You can only manage your own schedule",
-          EC: -3,
-          DT: [],
-        };
-      }
-
       // Không cho phép xóa lịch đã BOOKED
       if (schedule.status === "BOOKED") {
         return {
-          EM: "Cannot delete booked schedule",
+          EM: "Không thể xóa lịch đã đặt.",
           EC: -4,
           DT: [],
         };
@@ -916,12 +963,11 @@ class DoctorService {
       await schedule.destroy();
 
       return {
-        EM: "Schedule deleted successfully",
+        EM: "Lịch hẹn đã được xóa thành công.",
         EC: 0,
         DT: [],
       };
     } catch (error) {
-      console.error("Delete schedule error:", error);
       return {
         EM: `Error deleting schedule: ${error.message}`,
         EC: -1,

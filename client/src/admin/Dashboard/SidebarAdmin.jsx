@@ -1,0 +1,132 @@
+import { useState } from "react";
+import {
+  LayoutDashboard,
+  Users,
+  Stethoscope,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  ChevronDown,
+  Briefcase,
+  Clock,
+  Activity,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+
+const SidebarAdmin = () => {
+  const [expanded, setExpanded] = useState(true);
+  const [doctorMenuOpen, setDoctorMenuOpen] = useState(false);
+
+  const menuItems = [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/admin/dashboard" },
+    { icon: Users, label: "Users", path: "/admin/users" },
+    {
+      icon: Stethoscope,
+      label: "Bác sĩ",
+      subItems: [
+        {
+          icon: Activity,
+          label: "Chuyên khoa",
+          path: "/admin/doctor/specializations",
+        },
+        { icon: Briefcase, label: "Bác sĩ", path: "/admin/doctors" },
+        { icon: Clock, label: "Lịch làm việc", path: "/admin/doctors/all/schedules" },
+      ],
+    },
+    { icon: Calendar, label: "Lịch hẹn", path: "/admin/appointment" },
+  ];
+
+  return (
+    <div
+      className={`relative min-h-screen ${
+        expanded ? "w-72" : "w-20"
+      } bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 text-white transition-all duration-300 ease-in-out`}
+    >
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="absolute -right-3 top-8 z-10 rounded-full bg-blue-800 p-1.5 text-white hover:bg-blue-700 focus:outline-none shadow-lg"
+      >
+        {expanded ? (
+          <ChevronLeft className="h-4 w-4" />
+        ) : (
+          <ChevronRight className="h-4 w-4" />
+        )}
+      </button>
+
+      {/* Header */}
+      <div className="flex h-20 items-center justify-center border-b border-blue-700/50 bg-blue-900/50 backdrop-blur-sm">
+        {expanded ? (
+          <h1 className="text-xl font-bold">Admin Dashboard</h1>
+        ) : (
+          <h1 className="text-xl font-bold">AD</h1>
+        )}
+      </div>
+
+      {/* Navigation Menu */}
+      <nav className="mt-8 px-4">
+        {menuItems.map((item, index) => (
+          <div key={index}>
+            {item.subItems ? (
+              <div className="mb-2">
+                <button
+                  onClick={() => setDoctorMenuOpen(!doctorMenuOpen)}
+                  className={`w-full flex items-center justify-between rounded-lg p-3 text-gray-200 transition-colors hover:bg-blue-700/50 hover:text-white ${
+                    doctorMenuOpen ? "bg-blue-700/30" : ""
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <item.icon className="h-5 w-5 flex-shrink-0" />
+                    {expanded && <span className="ml-3">{item.label}</span>}
+                  </div>
+                  {expanded && (
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform duration-200 ${
+                        doctorMenuOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  )}
+                </button>
+                {doctorMenuOpen && expanded && (
+                  <div className="ml-4 mt-2 space-y-2">
+                    {item.subItems.map((subItem, subIndex) => (
+                      <Link
+                        key={subIndex}
+                        to={subItem.path}
+                        className="flex items-center rounded-lg p-3 text-gray-300 transition-colors hover:bg-blue-700/50 hover:text-white pl-4"
+                      >
+                        <subItem.icon className="h-4 w-4 flex-shrink-0" />
+                        <span className="ml-3">{subItem.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <a
+                href={item.path}
+                className="mb-2 flex items-center rounded-lg p-3 text-gray-300 transition-colors hover:bg-blue-700/50 hover:text-white"
+              >
+                <item.icon className="h-5 w-5 flex-shrink-0" />
+                {expanded && <span className="ml-3">{item.label}</span>}
+              </a>
+            )}
+          </div>
+        ))}
+      </nav>
+
+      {/* Footer/Logout */}
+      <div className="absolute bottom-0 w-full border-t border-blue-700/50 p-4">
+        <a
+          href="/logout"
+          className="flex items-center rounded-lg p-3 text-gray-300 transition-colors hover:bg-blue-700/50 hover:text-white"
+        >
+          <LogOut className="h-5 w-5 flex-shrink-0" />
+          {expanded && <span className="ml-3">Đăng xuất</span>}
+        </a>
+      </div>
+    </div>
+  );
+};
+
+export default SidebarAdmin;

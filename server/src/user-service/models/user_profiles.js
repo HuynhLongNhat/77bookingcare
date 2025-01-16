@@ -1,3 +1,4 @@
+const { uniqueId } = require("lodash");
 const Sequelize = require("sequelize");
 module.exports = function (sequelize, DataTypes) {
   const user_profiles = sequelize.define(
@@ -32,8 +33,13 @@ module.exports = function (sequelize, DataTypes) {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      phone: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        unique: true,
+      },
       avatar: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(200),
         allowNull: true,
       },
     },

@@ -1,15 +1,14 @@
-import { Routes, Route, BrowserRouter } from "react-router-dom";
-import ResetPassword from "./components/ResetPassword";
+import AppRoutes from "./routes/AppRoutes";
+import { Toaster } from "@/components/ui/toaster";
 
 const App = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/reset-password" element={<ResetPassword />} />
-        {/* Các routes khác */}
-      </Routes>
-    </BrowserRouter>
+    <>
+     <AppRoutes/>
+      <Toaster />
+    </>
   );
 };
 
 export default App;
+

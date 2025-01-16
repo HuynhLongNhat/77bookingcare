@@ -81,6 +81,9 @@ router.get("/specializations", doctorController.getAllSpecializations);
  *               description:
  *                 type: string
  *                 description: Description of the specialization
+ *               avatar:
+ *                 type: string
+ *                 description: avatar of the specialization
  *     responses:
  *       201:
  *         description: Specialization created successfully
@@ -108,61 +111,13 @@ router.post(
  *     responses:
  *       200:
  *         description: Success
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 EM:
- *                   type: string
- *                   example: "Get specialization success"
- *                 EC:
- *                   type: integer
- *                   example: 0
- *                 DT:
- *                   type: object
- *                   properties:
- *                     specialization_id:
- *                       type: string
- *                       example: "245870e8-637c-4cc6-af0b-2dd88fd8f089"
- *                     name:
- *                       type: string
- *                       example: "Khoa nội"
- *                     description:
- *                       type: string
- *                       example: "Chẩn đoán và điều trị các bệnh nội khoa"
+ *     
  *       404:
  *         description: Specialization not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 EM:
- *                   type: string
- *                   example: "Specialization not found"
- *                 EC:
- *                   type: integer
- *                   example: -2
- *                 DT:
- *                   type: array
- *                   example: []
+
  *       400:
  *         description: Bad request
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 EM:
- *                   type: string
- *                   example: "Invalid input"
- *                 EC:
- *                   type: integer
- *                   example: -1
- *                 DT:
- *                   type: array
- *                   example: []
+ 
  */
 router.get("/specializations/:id", doctorController.getSpecializationById);
 
@@ -199,51 +154,13 @@ router.get("/specializations/:id", doctorController.getSpecializationById);
  *     responses:
  *       200:
  *         description: Specialization updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 EM:
- *                   type: string
- *                   example: Update specialization success
- *                 EC:
- *                   type: number
- *                   example: 0
- *                 DT:
- *                   $ref: '#/components/schemas/Specialization'
+ 
  *       400:
  *         description: Invalid input
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 EM:
- *                   type: string
- *                   example: Error updating specialization
- *                 EC:
- *                   type: number
- *                   example: -1
- *                 DT:
- *                   type: array
- *                   example: []
+ 
  *       404:
  *         description: Specialization not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 EM:
- *                   type: string
- *                   example: Specialization not found
- *                 EC:
- *                   type: number
- *                   example: -2
- *                 DT:
- *                   type: array
- *                   example: []
+
  */
 router.put(
   "/specializations/:id",
@@ -271,52 +188,13 @@ router.put(
  *     responses:
  *       200:
  *         description: Specialization deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 EM:
- *                   type: string
- *                   example: Delete specialization success
- *                 EC:
- *                   type: number
- *                   example: 0
- *                 DT:
- *                   type: array
- *                   example: []
+ 
  *       400:
  *         description: Cannot delete specialization in use
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 EM:
- *                   type: string
- *                   example: Cannot delete specialization that is being used by doctors
- *                 EC:
- *                   type: number
- *                   example: -1
- *                 DT:
- *                   type: array
- *                   example: []
+
  *       404:
  *         description: Specialization not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 EM:
- *                   type: string
- *                   example: Specialization not found
- *                 EC:
- *                   type: number
- *                   example: -2
- *                 DT:
- *                   type: array
- *                   example: []
+ 
  */
 router.delete(
   "/specializations/:id",
@@ -329,22 +207,17 @@ router.delete(
  * @swagger
  * /api/doctors:
  *   get:
- *     summary: Get all doctors (Admin only)
+ *     summary: Get all doctors (Patient, Doctor, Admin)
  *     tags: [Doctors]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of all doctors
  *       401:
  *         description: Unauthorized
- *       403:
- *         description: Forbidden - Not an admin
+ *      
  */
 router.get(
   "/",
-  authenticateToken,
-  checkRole(["ADMIN"]),
   doctorController.getAllDoctors
 );
 /**
@@ -400,7 +273,7 @@ router.post(
  * @swagger
  * /api/doctors/{id}:
  *   get:
- *     summary: Get doctor details (Admin only)
+ *     summary: Get doctor details (Patient, Doctor , Admin )
  *     tags: [Doctors]
  *     security:
  *       - bearerAuth: []
@@ -416,8 +289,6 @@ router.post(
  */
 router.get(
   "/:id",
-  authenticateToken,
-  checkRole(["ADMIN", "DOCTOR"]),
   doctorController.getDoctorById
 );
 
@@ -425,7 +296,7 @@ router.get(
  * @swagger
  * /api/doctors/{id}:
  *   put:
- *     summary: Update doctor (Admin only)
+ *     summary: Update doctor (Admin )
  *     tags: [Doctors]
  *     security:
  *       - bearerAuth: []
@@ -549,96 +420,14 @@ router.get(
 // Schedule Management Routes
 /**
  * @swagger
- * /api/doctors/admin/schedules:
+ * /api/doctors/all/schedules:
  *   get:
- *     summary: Get all doctor schedules (Admin only)
+ *     summary: Get all doctor schedules (Patient, Doctor , Admin )
  *     tags: [Schedules]
- *     security:
- *       - bearerAuth: []
+
  *     responses:
  *       200:
  *         description: List of all schedules retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 EM:
- *                   type: string
- *                   example: Get all schedules successfully
- *                 EC:
- *                   type: number
- *                   example: 0
- *                 DT:
- *                   type: object
- *                   properties:
- *                     total_doctors:
- *                       type: number
- *                       example: 10
- *                     total_schedules:
- *                       type: number
- *                       example: 150
- *                     schedules:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           doctor:
- *                             type: object
- *                             properties:
- *                               doctor_id:
- *                                 type: string
- *                               user_id:
- *                                 type: string
- *                               full_name:
- *                                 type: string
- *                               email:
- *                                 type: string
- *                               phone:
- *                                 type: string
- *                               position:
- *                                 type: string
- *                               experience_years:
- *                                 type: number
- *                               consultation_fee:
- *                                 type: number
- *                               specialization:
- *                                 type: object
- *                                 properties:
- *                                   id:
- *                                     type: string
- *                                   name:
- *                                     type: string
- *                                   description:
- *                                     type: string
- *                           schedules:
- *                             type: object
- *                             properties:
- *                               today:
- *                                 type: array
- *                                 items:
- *                                   $ref: '#/components/schemas/Schedule'
- *                               upcoming:
- *                                 type: array
- *                                 items:
- *                                   $ref: '#/components/schemas/Schedule'
- *                               past:
- *                                 type: array
- *                                 items:
- *                                   $ref: '#/components/schemas/Schedule'
- *                               all:
- *                                 type: array
- *                                 items:
- *                                   $ref: '#/components/schemas/Schedule'
- *                           statistics:
- *                             type: object
- *                             properties:
- *                               total:
- *                                 type: number
- *                               available:
- *                                 type: number
- *                               booked:
- *                                 type: number
  *       401:
  *         description: Unauthorized
  *       403:
@@ -667,9 +456,7 @@ router.get(
  *           enum: [AVAILABLE, BOOKED]
  */
 router.get(
-  "/admin/schedules",
-  authenticateToken,
-  checkRole(["ADMIN"]),
+  "/all/schedules",
   doctorController.getAllSchedules
 );
 
@@ -817,12 +604,45 @@ router.put(
 
 /**
  * @swagger
+ * /api/doctors/{doctorId}/schedules/{scheduleId}:
+ *   get:
+ *     summary: Get details of a specific schedule
+ *     tags: [Schedules]
+ *     parameters:
+ *       - in: path
+ *         name: doctorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the doctor
+ *       - in: path
+ *         name: scheduleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the schedule
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved schedule details
+ *       400:
+ *         description: Schedule not found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Invalid role or not own schedule
+ */
+router.get(
+  "/:doctorId/schedules/:scheduleId",
+  doctorController.getDetailSchedule
+);
+
+/**
+ * @swagger
  * /api/doctors/{doctorId}/schedules:
  *   get:
- *     summary: Get doctor's schedules (ADMIN for any doctor, DOCTOR for self only)
+ *     summary: Get doctor's schedules (Patient, Doctor , Admin)
  *     tags: [Schedules]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: doctorId
@@ -833,26 +653,6 @@ router.put(
  *     responses:
  *       200:
  *         description: Doctor's schedules retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 EM:
- *                   type: string
- *                   example: Get schedules successfully
- *                 EC:
- *                   type: number
- *                   example: 0
- *                 DT:
- *                   type: object
- *                   properties:
- *                     doctor:
- *                       type: object
- *                     schedules:
- *                       type: array
- *                       items:
- *                         type: object
  *       401:
  *         description: Unauthorized
  *       403:
@@ -860,8 +660,6 @@ router.put(
  */
 router.get(
   "/:doctorId/schedules",
-  authenticateToken,
-  checkRole(["ADMIN", "DOCTOR"]),
   doctorController.getDoctorSchedules
 );
 

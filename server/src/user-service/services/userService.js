@@ -1,316 +1,185 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
-import { Op } from "sequelize";
 import db from "../models/index";
 import emailService from "../../email-service/emailService";
 
 class UserService {
   async register(userData) {
-    const { username, email, password, phone } = userData;
+    try {
+      const { email, password } = userData;
 
-    // Check existing user
-    const existingUser = await db.users.findOne({
-      where: {
-        [Op.or]: [{ email: email }, { username: username }],
-      },
-    });
+      // Check existing user
+      const existingUser = await db.users.findOne({
+        where: {
+          email: email,
+        },
+      });
 
-    if (existingUser) {
-      throw new Error("Username or email already exists");
+      if (existingUser) {
+        return {
+          EM: "Email đã tồn tại!",
+          EC: -1,
+          DT: [],
+        };
+      }
+
+      // Create new user
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const user = await db.users.create({
+        user_id: uuidv4(),
+        email,
+        password: hashedPassword,
+        user_role: "PATIENT",
+      });
+
+      // Create user profile
+      let newUser = await db.user_profiles.create({
+        profile_id: uuidv4(),
+        user_id: user.user_id,
+      });
+
+      if (newUser) {
+        return {
+          EM: "Đăng ký thành công!",
+          EC: 0,
+          DT: user,
+        };
+      }
+    } catch (error) {
+      return {
+        EM: "Lỗi hệ thống : " + error.message,
+        EC: -1,
+        DT: [],
+      };
     }
-
-    // Create new user
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await db.users.create({
-      user_id: uuidv4(),
-      username,
-      email,
-      password: hashedPassword,
-      phone,
-      user_role: "PATIENT",
-    });
-
-    // Create user profile
-    await db.user_profiles.create({
-      profile_id: uuidv4(),
-      user_id: user.user_id,
-    });
-
-    return this.sanitizeUser(user);
   }
 
-  async login(username, password) {
-    const user = await db.users.findOne({
-      where: { username },
-    });
+  async login(email, password) {
+    try {
+      const user = await db.users.findOne({
+        where: { email },
+      });
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      throw new Error("Invalid credentials");
+      if (!user || !(await bcrypt.compare(password, user.password))) {
+        return {
+          EM: "Email hoặc mật khẩu không đúng!",
+          EC: -1,
+          DT: [],
+        };
+      }
+
+      const token = jwt.sign(
+        {
+          userId: user.user_id,
+          email: user.email,
+          role: user.user_role,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "24h" }
+      );
+
+      return {
+        EM: "Đăng nhập thành công",
+        EC: 0,
+        DT: {
+          email :user.email,
+          role : user.user_role,
+          token,
+        },
+      };
+    } catch (error) {
+      return {
+        EM: "Lỗi hệ thống : " + error.message,
+        EC: -3,
+        DT: [],
+      };
     }
-
-    const token = jwt.sign(
-      {
-        userId: user.user_id,
-        role: user.user_role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "24h" }
-    );
-
-    return {
-      token,
-      user: this.sanitizeUser(user),
-    };
   }
 
   async logout(userId) {
-    // Với JWT, server không cần làm gì vì token được lưu ở client
-    // Client sẽ xóa token từ localStorage hoặc memory
-    return { message: "Logged out successfully" };
+    try {
+      return {
+        EM: "Đăng xuất thành công!",
+        EC: 0,
+        DT: [],
+      };
+    } catch (error) {
+      return {
+        EM: "Lỗi hệ thống : " + error.message,
+        EC: -1,
+        DT: [],
+      };
+    }
   }
 
   async changePassword(userId, oldPassword, newPassword) {
-    const user = await db.users.findByPk(userId);
+    try {
+      const user = await db.users.findByPk(userId);
+      if (!user) {
+        return {
+          EM: "Không tìm thấy người dùng!",
+          EC: -1,
+          DT: [],
+        };
+      }
 
-    if (!user) {
-      throw new Error("User not found");
+      // Verify old password
+      const isValidPassword = await bcrypt.compare(oldPassword, user.password);
+      if (!isValidPassword) {
+        return {
+          EM: "Mật khẩu cũ không đúng!",
+          EC: -2,
+          DT: [],
+        };
+      }
+
+      // Hash and update new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await user.update({ password: hashedPassword });
+      return {
+        EM: "Mật khẩu được đổi thành công!",
+        EC: 0,
+        DT: [],
+      };
+    } catch (error) {
+      return {
+        EM: "Lỗi hệ thống : " + error.message,
+        EC: -3,
+        DT: [],
+      };
     }
-
-    // Verify old password
-    const isValidPassword = await bcrypt.compare(oldPassword, user.password);
-    if (!isValidPassword) {
-      throw new Error("Current password is incorrect");
-    }
-
-    // Hash and update new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await user.update({ password: hashedPassword });
-
-    return { message: "Password changed successfully" };
   }
 
   async forgotPassword(email) {
     try {
       const user = await db.users.findOne({ where: { email } });
       if (!user) {
-        throw new Error("User not found");
+        return {
+          EM: "Email không tồn tại trong hệ thống!",
+          EC: -1,
+          DT: [],
+        };
       }
-
       // Generate reset token
       const resetToken = jwt.sign(
         { userId: user.user_id },
         process.env.JWT_SECRET,
         { expiresIn: "1h" }
       );
-
-      try {
-        await emailService.sendPasswordResetEmail(email, resetToken);
-        return { message: "Password reset instructions sent to email" };
-      } catch (error) {
-        console.error("Error in forgotPassword:", error);
-        throw new Error(
-          "Failed to send password reset email: " + error.message
-        );
-      }
-    } catch (error) {
-      console.error("ForgotPassword service error:", error);
-      throw error;
-    }
-  }
-
-  async getUserProfile(userId) {
-    const profile = await db.users.findOne({
-      where: { user_id: userId },
-      include: [
-        {
-          model: db.user_profiles,
-          as: "user_profiles",
-        },
-      ],
-      attributes: { exclude: ["password"] },
-    });
-
-    if (!profile) throw new Error("Profile not found");
-    return profile;
-  }
-
-  async updateProfile(userId, profileData) {
-    try {
-      // Validate date format if provided
-      if (profileData.date_of_birth) {
-        const isValidDate = !isNaN(
-          new Date(profileData.date_of_birth).getTime()
-        );
-        if (!isValidDate) {
-          throw new Error("Invalid date format for date_of_birth");
-        }
-      }
-
-      // Find the user profile
-      const userProfile = await db.user_profiles.findOne({
-        where: { user_id: userId },
-      });
-
-      if (!userProfile) {
-        throw new Error("User profile not found");
-      }
-
-      // Update the profile
-      await userProfile.update(profileData);
-
-      // Fetch and return the updated profile
-      const updatedProfile = await db.users.findOne({
-        where: { user_id: userId },
-        include: [
-          {
-            model: db.user_profiles,
-            as: "user_profiles",
-          },
-        ],
-        attributes: { exclude: ["password"] },
-      });
-
-      if (!updatedProfile) {
-        throw new Error("User not found");
-      }
-
-      return updatedProfile;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Helper method to remove sensitive data
-  sanitizeUser(user) {
-    const sanitized = user.toJSON();
-    delete sanitized.password;
-    return sanitized;
-  }
-
-  async getAllUsers() {
-    try {
-      const users = await db.users.findAll({
-        include: [
-          {
-            model: db.user_profiles,
-            as: "user_profiles",
-          },
-        ],
-        attributes: { exclude: ["password"] },
-        order: [["createdAt", "DESC"]],
-      });
-
+      await emailService.sendPasswordResetEmail(email, resetToken);
       return {
-        data: users,
+        EM: "Nhấn vào link xác nhận trong email để đổi mật khẩu",
+        EC: 0,
+        DT: [],
       };
     } catch (error) {
-      throw error;
-    }
-  }
-
-  async getUserById(userId) {
-    try {
-      const user = await db.users.findOne({
-        where: { user_id: userId },
-        include: [
-          {
-            model: db.user_profiles,
-            as: "user_profiles",
-          },
-        ],
-        attributes: { exclude: ["password"] },
-      });
-
-      if (!user) {
-        throw new Error("User not found");
-      }
-      return user;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async updateUser(userId, updateData) {
-    try {
-      // Validate role if it's being updated
-      if (
-        updateData.user_role &&
-        !["PATIENT", "DOCTOR", "ADMIN"].includes(updateData.user_role)
-      ) {
-        throw new Error("Invalid role");
-      }
-
-      // Validate email format if it's being updated
-      if (updateData.email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(updateData.email)) {
-          throw new Error("Invalid email format");
-        }
-      }
-
-      const user = await db.users.findOne({
-        where: { user_id: userId },
-      });
-
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      await user.update(updateData);
-
-      // Fetch updated user without password
-      const updatedUser = await this.getUserById(userId);
-      return updatedUser;
-    } catch (error) {
-      throw error;
-    }
-  }
-  async updateRoleUser(userId, newRole) {
-    try {
-      const user = await db.users.findOne({
-        where: { user_id: userId },
-      });
-
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      // Cập nhật role
-      await user.update({ user_role: newRole });
-
-      // Lấy thông tin user đã cập nhật (không bao gồm password)
-      const updatedUser = await db.users.findOne({
-        where: { user_id: userId },
-        attributes: { exclude: ["password"] },
-        include: [
-          {
-            model: db.user_profiles,
-            as: "user_profiles",
-          },
-        ],
-      });
-
-      return updatedUser;
-    } catch (error) {
-      throw error;
-    }
-  }
-  async deleteUser(userId) {
-    try {
-      const user = await db.users.findOne({
-        where: { user_id: userId },
-      });
-
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      await user.destroy();
-      return true;
-    } catch (error) {
-      throw error;
+      return {
+        EM: "Lỗi hệ thống : " + error.message,
+        EC: -1,
+        DT: [],
+      };
     }
   }
 
@@ -345,6 +214,233 @@ class UserService {
         throw new Error("Token không hợp lệ hoặc đã hết hạn");
       }
       throw new Error("Không thể cập nhật mật khẩu: " + error.message);
+    }
+  }
+  async getUserProfile(userId) {
+    try {
+      const profile = await db.users.findOne({
+        where: { user_id: userId },
+        include: [
+          {
+            model: db.user_profiles,
+            as: "user_profiles",
+          },
+        ],
+        attributes: { exclude: ["password"] },
+      });
+
+      if (!profile) {
+        return {
+          EM: "Không tìm thấy người dùng!",
+          EC: -1,
+          DT: [],
+        };
+      }
+      return {
+        EM: "Thông tin người dùng",
+        EC: 0,
+        DT: profile,
+      };
+    } catch (error) {
+      return res.status(500).json({
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
+      });
+    }
+  }
+
+  async updateProfile(userId, profileData) {
+    try {
+      // Validate date format if provided
+      if (profileData.date_of_birth) {
+        const isValidDate = !isNaN(
+          new Date(profileData.date_of_birth).getTime()
+        );
+        if (!isValidDate) {
+          return {
+            EM: "Ngày sinh không đúng định dạng!",
+            EC: -2,
+            DT: [],
+          };
+        }
+      }
+
+      // Find the user profile
+      const userProfile = await db.user_profiles.findOne({
+        where: { user_id: userId },
+      });
+
+      if (!userProfile) {
+        return {
+          EM: "Không tìm thấy người dùng!",
+          EC: -1,
+          DT: [],
+        };
+      }
+      // Update the profile
+      let userUpdate = await userProfile.update(profileData);
+      if (!userUpdate) {
+        return {
+          EM: "Không thể cập nhật thông tin người dùng!",
+          EC: -1,
+          DT: [],
+        };
+      }
+      return {
+        EM: "Thông tin người dùng đã được cập nhật thành công!",
+        EC: 0,
+        DT: userUpdate,
+      };
+    } catch (error) {
+      return {
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
+      };
+    }
+  }
+
+  async getAllUsers() {
+    try {
+      const users = await db.users.findAll({
+        include: [
+          {
+            model: db.user_profiles,
+            as: "user_profiles",
+          },
+        ],
+        attributes: { exclude: ["password"] },
+        order: [["createdAt", "DESC"]],
+      });
+      if (!users) {
+        return {
+          EM: "Không tìm thấy người dùng!",
+          EC: -1,
+          DT: [],
+        };
+      }
+      return {
+        EM: "Lấy danh sách người dùng thành công!",
+        EC: 0,
+        DT: users,
+      };
+    } catch (error) {
+      return {
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
+      };
+    }
+  }
+
+  async getUserById(userId) {
+    try {
+      const user = await db.users.findOne({
+        where: { user_id: userId },
+        include: [
+          {
+            model: db.user_profiles,
+            as: "user_profiles",
+          },
+        ],
+        attributes: { exclude: ["password"] },
+      });
+
+      if (!user) {
+        return {
+          EM: "Không tìm thấy người dùng!",
+          EC: -1,
+          DT: [],
+        };
+      }
+      return {
+        EM: "Lấy thông tin người dùng thành công!",
+        EC: 0,
+        DT: user,
+      };
+    } catch (error) {
+      return {
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
+      };
+    }
+  }
+  async updateRoleUser(userId, newRole) {
+    try {
+      const user = await db.users.findOne({
+        where: { user_id: userId },
+      });
+
+      if (!user) {
+        return {
+          EM: "Không tìm thấy người dùng!",
+          EC: -1,
+          DT: [],
+        };
+      }
+      const validRoles = ["PATIENT", "DOCTOR", "ADMIN"];
+      if (!validRoles.includes(newRole)) {
+        return {
+          EM: "Role phải là PATIENT, DOCTOR hoặc ADMIN",
+          EC: -2,
+          DT: [],
+        };
+      }
+      // Cập nhật role
+      await user.update({ user_role: newRole });
+
+      // Lấy thông tin user đã cập nhật (không bao gồm password)
+      const updatedUser = await db.users.findOne({
+        where: { user_id: userId },
+        attributes: { exclude: ["password"] },
+        include: [
+          {
+            model: db.user_profiles,
+            as: "user_profiles",
+          },
+        ],
+      });
+
+      return {
+        EM: "Role đã được cập nhật thành công!",
+        EC: 0,
+        DT: updatedUser,
+      };
+    } catch (error) {
+      return {
+        EM: "Lỗi hệ thống:" + error.message,
+        EC: -1,
+        DT: [],
+      };
+    }
+  }
+  async deleteUser(userId) {
+    try {
+      const result = await db.users.destroy({
+        where: { user_id: userId },
+      });
+
+      if (result) {
+        return {
+          EM: "Xóa người dùng thành công!",
+          EC: 0,
+          DT: [],
+        };
+      } else {
+        return {
+          EM: "Người dùng không tồn tại.",
+          EC: -1,
+          DT: [],
+        };
+      }
+    } catch (error) {
+      return {
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -2,
+        DT: [],
+      };
     }
   }
 }

@@ -4,42 +4,45 @@ const userController = {
   // Auth Controllers
   register: async (req, res) => {
     try {
-      const { username, email, password, phone } = req.body;
-      const result = await userService.register({
-        username,
-        email,
-        password,
-        phone,
-      });
+      const { email, password } = req.body;
+
+      const data = await userService.register({ email, password });
+
       return res.status(201).json({
-        message: "User registered successfully",
-        data: result,
+        EM: data.EM,
+        EC: data.EC,
+        DT: data.DT,
       });
     } catch (error) {
-      return res.status(400).json({
-        message: error.message,
+      // Xử lý lỗi không mong muốn ở controller
+      return res.status(500).json({
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
       });
     }
   },
 
   login: async (req, res) => {
     try {
-      const { username, password } = req.body;
-      const result = await userService.login(username, password);
-
+      const { email, password } = req.body;
+      const result = await userService.login(email, password);
       // Set token in cookie
-      res.cookie("token", result.token, {
+      res.cookie("token", result.DT.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
       });
 
       return res.status(200).json({
-        message: "Login successful",
-        data: result,
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
       });
     } catch (error) {
-      return res.status(401).json({
-        message: error.message,
+      return res.status(500).json({
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
       });
     }
   },
@@ -47,9 +50,17 @@ const userController = {
   logout: async (req, res) => {
     try {
       const result = await userService.logout(req.user.userId);
-      return res.status(200).json(result);
+      return res.status(200).json({
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
+      });
     } catch (error) {
-      return res.status(400).json({ message: error.message });
+      return res.status(500).json({
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
+      });
     }
   },
 
@@ -61,9 +72,17 @@ const userController = {
         oldPassword,
         newPassword
       );
-      return res.status(200).json(result);
+      return res.status(200).json({
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
+      });
     } catch (error) {
-      return res.status(400).json({ message: error.message });
+      return res.status(500).json({
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
+      });
     }
   },
 
@@ -72,20 +91,22 @@ const userController = {
       const { email } = req.body;
       const result = await userService.forgotPassword(email);
       return res.status(200).json({
-        message: "Password reset instructions sent to your email",
-        data: result,
+        EM: result.EM,
+        EC: result.EC,
+        DT: result.DT,
       });
     } catch (error) {
-      console.error("Password reset error:", error);
-      return res.status(error.status || 400).json({
-        message: error.message || "Failed to process password reset request",
-        error: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      return res.status(500).json({
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
       });
     }
   },
 
   resetPassword: async (req, res) => {
     try {
+      console.log("token" , newPassword)
       const { token, newPassword } = req.body;
 
       if (!token || !newPassword) {
@@ -107,19 +128,21 @@ const userController = {
       });
     }
   },
-
   // Profile Controllers
   getProfile: async (req, res) => {
     try {
       const userId = req.user.userId;
       const profile = await userService.getUserProfile(userId);
-
       return res.status(200).json({
-        data: profile,
+        EM: profile.EM,
+        EC: profile.EC,
+        DT: profile.DT,
       });
     } catch (error) {
-      return res.status(400).json({
-        message: error.message,
+      return res.status(500).json({
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
       });
     }
   },
@@ -127,17 +150,17 @@ const userController = {
   updateProfile: async (req, res) => {
     try {
       const userId = req.user.userId;
-      const { full_name, date_of_birth, gender, address, avatar } = req.body;
-
+      const { full_name, phone, date_of_birth, gender, address, avatar } =
+        req.body;
       // Chỉ cho phép cập nhật các trường được phép
       const allowedUpdates = {
         full_name,
+        phone,
         date_of_birth,
         gender,
         address,
         avatar,
       };
-
       // Kiểm tra giá trị của gender
       if (gender && !["M", "F", "OTHER"].includes(gender)) {
         return res.status(400).json({
@@ -149,71 +172,35 @@ const userController = {
         userId,
         allowedUpdates
       );
-
       return res.status(200).json({
-        message: "Profile updated successfully",
-        data: updatedProfile,
+        EM: updatedProfile.EM,
+        EC: updatedProfile.EC,
+        DT: updatedProfile.DT,
       });
     } catch (error) {
-      return res.status(400).json({
-        message: error.message,
+      return res.status(500).json({
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
       });
     }
   },
 
   // Role Management Controllers
-  changeUserRole: async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const { role } = req.body;
-
-      // Kiểm tra role hợp lệ
-      const validRoles = ["PATIENT", "DOCTOR", "ADMIN"];
-      if (!validRoles.includes(role)) {
-        return res.status(400).json({
-          message: "Invalid role. Must be PATIENT, DOCTOR, or ADMIN",
-        });
-      }
-
-      const result = await userService.changeUserRole(userId, role);
-
-      return res.status(200).json({
-        message: "User role updated successfully",
-        data: result,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        message: error.message,
-      });
-    }
-  },
-
-  getUsersByRole: async (req, res) => {
-    try {
-      const { role } = req.params;
-      const users = await userService.getUsersByRole(role);
-
-      return res.status(200).json({
-        data: users,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        message: error.message,
-      });
-    }
-  },
-
   getAllUsers: async (req, res) => {
     try {
       const users = await userService.getAllUsers();
 
       return res.status(200).json({
-        message: "Users retrieved successfully",
-        data: users.data,
+        EM: users.EM,
+        EC: users.EC,
+        DT: users.DT,
       });
     } catch (error) {
       return res.status(500).json({
-        message: error.message,
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
       });
     }
   },
@@ -222,20 +209,17 @@ const userController = {
     try {
       const { userId } = req.params;
       const user = await userService.getUserById(userId);
-
-      if (!user) {
-        return res.status(404).json({
-          message: "User not found",
-        });
-      }
-
-      return res.status(200).json({
-        message: "User retrieved successfully",
-        data: user,
-      });
+       // If user is found, return 200
+       return res.status(200).json({
+         EM: user.EM,
+         EC: user.EC,
+         DT: user.DT,
+       });
     } catch (error) {
       return res.status(500).json({
-        message: error.message,
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
       });
     }
   },
@@ -243,38 +227,21 @@ const userController = {
   updateRoleUser: async (req, res) => {
     try {
       const { userId } = req.params;
-      const userRole = req.user.role;
-      const updateData = req.body;
-      // Kiểm tra quyền truy cập
-      if (userRole !== "ADMIN") {
-        return res.status(403).json({
-          message: "Only admin can update user role",
-        });
-      }
-      // Validate role
-      if (!updateData.user_role) {
-        return res.status(400).json({
-          message: "Role is required",
-        });
-      }
-      // Kiểm tra role hợp lệ
-      const validRoles = ["PATIENT", "DOCTOR", "ADMIN"];
-      if (!validRoles.includes(updateData.user_role)) {
-        return res.status(400).json({
-          message: "Invalid role. Must be PATIENT, DOCTOR, or ADMIN",
-        });
-      }
+      const newRole = req.body;
       const updatedUser = await userService.updateRoleUser(
         userId,
-        updateData.user_role
+        newRole.user_role
       );
       return res.status(200).json({
-        message: "User role updated successfully",
-        data: updatedUser,
+        EM: updatedUser.EM,
+        EC: updatedUser.EC,
+        DT: updatedUser.DT,
       });
     } catch (error) {
-      return res.status(400).json({
-        message: error.message,
+      return res.status(500).json({
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
       });
     }
   },
@@ -282,14 +249,18 @@ const userController = {
   deleteUser: async (req, res) => {
     try {
       const { userId } = req.params;
-      await userService.deleteUser(userId);
+      let user = await userService.deleteUser(userId);
 
       return res.status(200).json({
-        message: "User deleted successfully",
+        EM: user.EM,
+        EC: user.EC,
+        DT: user.DT,
       });
     } catch (error) {
-      return res.status(400).json({
-        message: error.message,
+      return res.status(500).json({
+        EM: "Lỗi hệ thống: " + error.message,
+        EC: -1,
+        DT: [],
       });
     }
   },

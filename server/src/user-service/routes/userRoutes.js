@@ -16,19 +16,15 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - username
+ *             required:           
  *               - email
  *               - password
- *             properties:
- *               username:
- *                 type: string
+ *             properties:            
  *               email:
  *                 type: string
  *               password:
  *                 type: string
- *               phone:
- *                 type: string
+ *              
  *     responses:
  *       201:
  *         description: User registered successfully
@@ -50,10 +46,10 @@ router.post("/register", userController.register);
  *           schema:
  *             type: object
  *             required:
- *               - username
+ *               - email
  *               - password
  *             properties:
- *               username:
+ *               email:
  *                 type: string
  *               password:
  *                 type: string
@@ -64,62 +60,6 @@ router.post("/register", userController.register);
  *         description: Invalid credentials
  */
 router.post("/login", userController.login);
-
-/**
- * @swagger
- * /api/users/profile:
- *   get:
- *     summary: Get user profile
- *     tags: [Profile]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User profile data
- *       401:
- *         description: Unauthorized
- */
-router.get("/profile", authenticateToken, userController.getProfile);
-
-/**
- * @swagger
- * /api/users/profile:
- *   put:
- *     summary: Update user profile
- *     tags: [Profile]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               full_name:
- *                 type: string
- *               date_of_birth:
- *                 type: string
- *                 format: date
- *               gender:
- *                 type: string
- *                 enum: [M, F, OTHER]
- *               address:
- *                 type: string
- *               avatar:
- *                 type: string
- *     responses:
- *       200:
- *         description: Profile updated successfully
- *       401:
- *         description: Unauthorized
- */
-router.put(
-  "/profile",
-  authenticateToken,
-  checkRole(["PATIENT", "DOCTOR", "ADMIN"]),
-  userController.updateProfile
-);
 
 /**
  * @swagger
@@ -216,28 +156,96 @@ router.post("/forgot-password", userController.forgotPassword);
  *             properties:
  *               token:
  *                 type: string
+ *                 description: Reset token sent to the user's email
  *               newPassword:
+ *                 type: string
+ *                 description: New password for the account
+ *     responses:
+ *       200:
+ *         description: Password successfully reset
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Password successfully reset
+ *       400:
+ *         description: Invalid input or token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Invalid token or password
+ *       500:
+ *         description: Server error
+ */
+router.post("/reset-password", userController.resetPassword);
+/**
+ * @swagger
+ * /api/users/profile:
+ *   get:
+ *     summary: Get user profile
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile data
+ *       401:
+ *         description: Unauthorized
+ */
+router.get(
+  "/profile",
+  authenticateToken,
+  checkRole(["PATIENT", "DOCTOR", "ADMIN"]),
+  userController.getProfile
+);
+
+/**
+ * @swagger
+ * /api/users/profile:
+ *   put:
+ *     summary: Update user profile
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               full_name:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               date_of_birth:
+ *                 type: string
+ *                 format: date
+ *               gender:
+ *                 type: string
+ *                 enum: [M, F, OTHER]
+ *               address:
+ *                 type: string
+ *               avatar:
  *                 type: string
  *     responses:
  *       200:
- *         description: Password reset successful
- *       400:
- *         description: Invalid token or password
+ *         description: Profile updated successfully
+ *       401:
+ *         description: Unauthorized
  */
-router.post("/reset-password", userController.resetPassword);
-
-// Role management routes
 router.put(
-  "/role/:userId",
+  "/profile",
   authenticateToken,
-  checkRole(["ADMIN"]),
-  userController.changeUserRole
-);
-router.get(
-  "/users-by-role/:role",
-  authenticateToken,
-  checkRole(["ADMIN"]),
-  userController.getUsersByRole
+  checkRole(["PATIENT", "DOCTOR", "ADMIN"]),
+  userController.updateProfile
 );
 
 /**
@@ -257,8 +265,6 @@ router.get(
  */
 router.get(
   "/",
-  authenticateToken,
-  checkRole(["ADMIN"]),
   userController.getAllUsers
 );
 
@@ -284,8 +290,6 @@ router.get(
  */
 router.get(
   "/:userId",
-  authenticateToken,
-  checkRole(["ADMIN"]),
   userController.getUserById
 );
 

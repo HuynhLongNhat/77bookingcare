@@ -6,7 +6,7 @@ export const authenticateToken = (req, res, next) => {
 
     if (!token) {
       return res.status(401).json({
-        message: "Authentication required",
+        message: "Yêu cầu xác thực người dùng",
       });
     }
 
@@ -15,7 +15,7 @@ export const authenticateToken = (req, res, next) => {
     next();
   } catch (error) {
     return res.status(403).json({
-      message: "Invalid or expired token",
+      message: "Token không hợp lệ hoặc hết hạn!",
     });
   }
 };
@@ -24,13 +24,13 @@ export const checkRole = (roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
-        message: "Authentication required",
+        message: "Yêu cầu xác thực người dùng",
       });
     }
 
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
-        message: "Permission denied",
+        message: "Bạn không có quyền này",
       });
     }
 
